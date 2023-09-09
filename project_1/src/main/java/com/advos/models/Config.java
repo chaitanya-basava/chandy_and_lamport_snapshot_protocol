@@ -4,12 +4,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Config {
-    int n;
-    int minPerActive;
-    int maxPerActive;
-    int minSendDelay;
-    int snapshotDelay;
-    int maxNumber;
+    private final int n;
+    private final int minPerActive;
+    private final int maxPerActive;
+    private final int minSendDelay;
+    private final int snapshotDelay;
+    private final int maxNumber;
     Map<Integer, NodeInfo> nodes = new HashMap<>();
 
     public Config(

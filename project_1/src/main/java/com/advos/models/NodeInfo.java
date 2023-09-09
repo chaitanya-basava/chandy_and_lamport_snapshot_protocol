@@ -4,10 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class NodeInfo {
-    int id;
-    String host;
-    int port;
+    private final int id;
+    private final String host;
+    private final int port;
     List<Integer> neighbors = new ArrayList<>();
+    List<NodeInfo> neighborNodesInfo = new ArrayList<>();
 
     public NodeInfo(int id, String host, int port) {
         this.id = id;
@@ -31,8 +32,16 @@ public class NodeInfo {
         return neighbors;
     }
 
-    public void addNeighbor(int neighbor) {
-        this.neighbors.add(neighbor);
+    public List<NodeInfo> getNeighborNodesInfo() {
+        return neighborNodesInfo;
+    }
+
+    public void addNeighborsInfo(List<NodeInfo> neighborsInfo) {
+        this.neighborNodesInfo = neighborsInfo;
+    }
+
+    public void addNeighbors(List<Integer> neighbors) {
+        this.neighbors = neighbors;
     }
 
     @Override

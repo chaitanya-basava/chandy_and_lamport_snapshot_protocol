@@ -15,15 +15,13 @@ import org.slf4j.LoggerFactory;
 public class ConfigParser {
     private Config config = null;
     private final boolean verbose;
-    private final boolean eVerbose;
     private static final Logger logger = LoggerFactory.getLogger(ConfigParser.class);
 
-    public ConfigParser(boolean verbose, boolean eVerbose) {
+    public ConfigParser(boolean verbose) {
         this.verbose = verbose;
-        this.eVerbose = eVerbose;
     }
 
-    public void parseConfig(String fileName) {
+    public void parseConfig(String fileName) throws Exception {
         String line;
         int lineCount = 0;
         Map<String, Integer> hostPortMap = new HashMap<>();
@@ -68,7 +66,7 @@ public class ConfigParser {
                                 Integer.parseInt(validTokens.get(5))
                         );
                     } catch (NumberFormatException e) {
-                        if(this.eVerbose) logger.error(e.getMessage());
+                        if(this.verbose) logger.error(e.getMessage());
                         continue;
                     }
                 } else if (this.config != null && lineCount <= this.config.getN()) {
@@ -92,7 +90,7 @@ public class ConfigParser {
                                         hostPortMap.get(hostName) == listenPort
                         ) throw new Exception("host: " + hostName + " and port: " + listenPort + " already taken");
                     } catch (Exception e) {
-                        if(this.eVerbose) logger.error(e.getMessage());
+                        if(this.verbose) logger.error(e.getMessage());
                         continue;
                     }
 
@@ -104,6 +102,7 @@ public class ConfigParser {
                     int idx = lineCount - (this.config.getN() + 1);
 
                     List<Integer> validTokensInt = new ArrayList<>();
+                    List<NodeInfo> neighborNodesInfo = new ArrayList<>();
                     try {
                         for (String validToken: validTokens) {
                             int parsedToken = Integer.parseInt(validToken);
@@ -111,15 +110,15 @@ public class ConfigParser {
                                 throw new NumberFormatException("can't communicate with same process");
                             }
                             validTokensInt.add(parsedToken);
+                            neighborNodesInfo.add(this.config.getNode(parsedToken));
                         }
+                        this.config.getNode(idx).addNeighborsInfo(neighborNodesInfo);
                     } catch (NumberFormatException e) {
-                        if(this.eVerbose) logger.error(e.getMessage());
+                        if(this.verbose) logger.error(e.getMessage());
                         continue;
                     }
 
-                    for (Integer validToken : validTokensInt) {
-                        this.config.getNode(idx).addNeighbor(validToken);
-                    }
+                    this.config.getNode(idx).addNeighbors(validTokensInt);
                 } else if (this.config != null && lineCount > 2 * this.config.getN()) break;
 
                 lineCount++;
@@ -129,7 +128,7 @@ public class ConfigParser {
                 logger.info("Parsed Config file is as follows:" + getConfig().toString());
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new Exception(e.getMessage());
         }
     }
 
@@ -137,8 +136,8 @@ public class ConfigParser {
         return this.config;
     }
 
-    public static void main(String[] args) {
-        ConfigParser configParser = new ConfigParser(true, true);
+    public static void main(String[] args) throws Exception {
+        ConfigParser configParser = new ConfigParser(true);
         configParser.parseConfig(
                 Objects.requireNonNull(ConfigParser.class.
                                 getClassLoader().
