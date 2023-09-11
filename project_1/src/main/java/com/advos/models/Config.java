@@ -83,4 +83,13 @@ public class Config {
 
         return str.toString();
     }
+
+    public int getNodeIdFromHostPort(String host, int port) {
+        for (NodeInfo nodeInfo : this.nodes.values()) {
+            if (nodeInfo.getHost().equals(host) && nodeInfo.getPort() == port) {
+                return nodeInfo.getId();
+            }
+        }
+        return -1;
+    }
 }
