@@ -14,7 +14,7 @@ public class Launcher {
         this.executeJar = new ExecuteJar();
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) {
         if (args.length == 0) {
             logger.error("Please provide the fully qualified name of the main class.");
             System.exit(1);

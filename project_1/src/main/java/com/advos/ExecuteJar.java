@@ -2,6 +2,7 @@ package com.advos;
 
 import com.advos.models.Config;
 import com.advos.models.NodeInfo;
+import com.advos.utils.ConfigParser;
 import org.apache.commons.cli.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

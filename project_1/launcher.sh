@@ -15,8 +15,9 @@ cleanup="$7"
 
 scp -i "$rsa_path" "$cleanup" "$net_id@dc01:$remote_proj_path/pre_run_cleanup.sh"
 
-for hostNum in {1..7}; do
-    ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa_dc sxb220302@dc0$hostNum "bash $remote_proj_path/pre_run_cleanup.sh"
+for hostNum in $(seq -f "%02g" 1 45); do
+    ((i=i%7)); ((i++==0)) && wait
+    ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa_dc sxb220302@dc"$hostNum" "bash $remote_proj_path/pre_run_cleanup.sh" &
 done
 
 scp -i "$rsa_path" "$config_file" "$net_id@dc01:$remote_proj_path/config.txt"

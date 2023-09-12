@@ -1,5 +1,6 @@
-package com.advos;
+package com.advos.utils;
 
+import com.advos.MAPProtocol;
 import com.advos.models.Config;
 import com.advos.models.NodeInfo;
 import org.slf4j.Logger;

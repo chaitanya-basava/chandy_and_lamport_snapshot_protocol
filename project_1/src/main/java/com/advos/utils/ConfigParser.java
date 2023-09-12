@@ -1,4 +1,4 @@
-package com.advos;
+package com.advos.utils;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
