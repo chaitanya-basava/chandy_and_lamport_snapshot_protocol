@@ -1,7 +1,7 @@
 #bash launcher.sh "/Users/chaitanyabasava/Documents/advanced_os/project_1/src/main/resources/config.txt" "/Users/chaitanyabasava/Documents/advanced_os/project_1/target/" "project_1-1.0-SNAPSHOT-jar-with-dependencies.jar" "/home/012/s/sx/sxb220302/adv_os_proj_1/" sxb220302 "~/.ssh/id_rsa_dc" "/Users/chaitanyabasava/Documents/advanced_os/project_1/pre_run_cleanup.sh"
 
 if [ $# -ne 7 ]; then
-    echo "Usage: $0 <config_file> <jar_path> <jar_name> <remote_proj_path> <net_id> <rsa_path> <cleanup>"
+    echo "Usage: $0 <path to config file on local> <path to jar file> <jar file's name> <project directory on dc machine> <netid> <rsa file path> <pre cleanup script path>"
     exit 1
 fi
 
