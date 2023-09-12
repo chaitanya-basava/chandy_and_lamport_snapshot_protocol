@@ -33,7 +33,7 @@ public class Channel {
 
                 node.receiveApplicationMessage(msg);
             } catch (EOFException ignored) {
-                Main.sleep(1000);
+                MAPProtocol.sleep(1000);
             }
             catch (IOException e) {
                 logger.error(e.getMessage());
@@ -52,6 +52,7 @@ public class Channel {
     public void close() {
         if(!socket.isClosed() && socket.isConnected()) {
             try {
+                logger.info("Closing channel with " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
                 socket.close();
                 in.close();
                 out.close();

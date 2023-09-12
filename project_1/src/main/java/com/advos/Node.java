@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
@@ -22,22 +23,21 @@ public class Node {
 
     private final Thread serverThread;
 
-    public Node(Config config, NodeInfo nodeInfo) {
+    public Node(Config config, NodeInfo nodeInfo, boolean isActive) {
         this.config = config;
         this.nodeInfo = nodeInfo;
-
-        if(nodeInfo.getId() == 0) {
-            this.isActive.set(true);
-        }
+        this.isActive.set(isActive);
 
         this.serverThread = new Thread(this::startServer, "Socket Server Thread");
-
         this.serverThread.start();
+
         this.startClient();
     }
 
     private void startServer() {
-        try(ServerSocket server = new ServerSocket(nodeInfo.getPort())) {
+        try(ServerSocket server = new ServerSocket()) {
+            server.setReuseAddress(true);
+            server.bind(new InetSocketAddress(nodeInfo.getPort()));
             while(true) {
                 Socket socket = server.accept();
                 Channel channel = new Channel(socket, this);
@@ -68,7 +68,7 @@ public class Node {
                 idx++;
             } catch (IOException e) {
                 logger.error("Couldn't connect to " + neighbours.get(idx).getHost() + ":" + neighbours.get(idx).getPort());
-                Main.sleep(2000);
+                MAPProtocol.sleep(2000);
             }
         }
 

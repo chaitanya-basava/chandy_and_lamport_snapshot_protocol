@@ -92,4 +92,8 @@ public class Config {
         }
         return -1;
     }
+
+    public Map<Integer, NodeInfo> getNodes() {
+        return nodes;
+    }
 }

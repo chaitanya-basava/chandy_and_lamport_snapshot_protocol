@@ -7,8 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Random;
 
-public class Main {
-    private static final Logger logger = LoggerFactory.getLogger(Main.class);
+public class MAPProtocol {
+    private static final Logger logger = LoggerFactory.getLogger(MAPProtocol.class);
+    private Node node;
 
     private static CommandLine parseArgs(String[] args) {
         Options options = new Options();
@@ -24,6 +25,9 @@ public class Main {
         Option verbose = new Option("v", "verbose", false, "Program verbosity");
         options.addOption(verbose);
 
+        Option isActive = new Option("a", "isActive", false, "Node active or not");
+        options.addOption(isActive);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
 
@@ -37,9 +41,10 @@ public class Main {
         return null;
     }
 
-    public static void main(String[] args) {
-        CommandLine cmd = Main.parseArgs(args);
+    public void execute(String[] args) {
+        CommandLine cmd = MAPProtocol.parseArgs(args);
         boolean verbose = cmd.hasOption("v");
+        boolean isActive = cmd.hasOption("a");
         int nodeId = Integer.parseInt(cmd.getOptionValue("nodeId"));
         String configFile = cmd.getOptionValue("configFile");
 
@@ -51,7 +56,7 @@ public class Main {
         }
         Config config = configParser.getConfig();
 
-        Node node = new Node(config, config.getNode(nodeId));
+        this.node = new Node(config, config.getNode(nodeId), isActive);
 
         logger.info("node info with id: {}\n{}", nodeId, node);
 
@@ -59,7 +64,6 @@ public class Main {
             if(node.getIsActive()) {
                 int numMessagesToSend = randomInRange(config.getMinPerActive(), config.getMaxPerActive());
 
-                // if(config.getMaxNumber() <= node.getMessageCounter()) break;
                 if(config.getMaxNumber() < node.getMessageCounter() + numMessagesToSend) {
                     numMessagesToSend = config.getMaxNumber() - node.getMessageCounter();
                 }
@@ -87,5 +91,9 @@ public class Main {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public void cleanup() {
+        node.close();
     }
 }
