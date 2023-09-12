@@ -16,7 +16,7 @@ mvn clean package
 ```
 3. Once the jar file is generated, execute the `launcher.sh` script as following to start the MAP protocol
 ```
-bash launcher.sh <path to config file on local> <path to jar file> <jar file's name> <project directory on dc machine> <netid> <rsa file path> "./pre_run_cleanup.sh"
+bash launcher.sh <path to config file on local> <path to jar file> <jar file's name> <project directory on dc machine> <netid> <rsa file path>
 ```
 
 **NOTE:** This assumes you have done the steps to enable passwordless login to dcXX machine on your local machine and have the corresponding rsa pem file.
