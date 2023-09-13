@@ -14,42 +14,45 @@ import java.util.concurrent.*;
 public class ExecuteJar {
     private static final Logger logger = LoggerFactory.getLogger(ExecuteJar.class);
 
-    private static String netid;
-    private static String jarPath;
-    private static String configFile;
-    private static String configFileOnDC;
-    private static String sshKeyFile;
+    private final String netid;
+    private final String jarPath;
+    private final String configFile;
+    private final String configFileOnDC;
+    private final String sshKeyFile;
+    private final boolean local;
+    private final boolean linux;
+    private final Config config;
 
-    private static CommandLine parseArgs(String[] args) {
+    private CommandLine parseArgs(String[] args) {
         Options options = new Options();
 
-        Option configFile = new Option("c", "configFile", true, "config file path");
-        configFile.setRequired(true);
-        options.addOption(configFile);
+        Option configFileOption = new Option("c", "configFile", true, "config file path");
+        configFileOption.setRequired(true);
+        options.addOption(configFileOption);
 
-        Option remoteConfigFile = new Option("rc", "remoteConfigFile", true, "config file path on dc machine");
-        remoteConfigFile.setRequired(true);
-        options.addOption(remoteConfigFile);
+        Option remoteConfigFileOption = new Option("rc", "remoteConfigFile", true, "config file path on dc machine");
+        remoteConfigFileOption.setRequired(true);
+        options.addOption(remoteConfigFileOption);
 
-        Option netid = new Option("id", "netid", true, "netid to login to dc machines");
-        netid.setRequired(true);
-        options.addOption(netid);
+        Option netidOption = new Option("id", "netid", true, "netid to login to dc machines");
+        netidOption.setRequired(true);
+        options.addOption(netidOption);
 
-        Option jarPath = new Option("jar", "jarPath", true, "jar file path");
-        jarPath.setRequired(true);
-        options.addOption(jarPath);
+        Option jarPathOption = new Option("jar", "jarPath", true, "jar file path");
+        jarPathOption.setRequired(true);
+        options.addOption(jarPathOption);
 
-        Option sshKey = new Option("ssh", "sskKey", true, "ssh key path");
-        options.addOption(sshKey);
+        Option sshKeyOption = new Option("ssh", "sskKey", true, "ssh key path");
+        options.addOption(sshKeyOption);
 
-        Option verbose = new Option("v", "verbose", false, "Program verbosity");
-        options.addOption(verbose);
+        Option verboseOption = new Option("v", "verbose", false, "Program verbosity");
+        options.addOption(verboseOption);
 
-        Option runLocal = new Option("lo", "local", false, "Run program on local machine");
-        options.addOption(runLocal);
+        Option runLocalOption = new Option("lo", "local", false, "Run program on local machine");
+        options.addOption(runLocalOption);
 
-        Option linux = new Option("l", "linux", false, "Run program on linux machine");
-        options.addOption(linux);
+        Option linuxOption = new Option("l", "linux", false, "Run program on linux machine");
+        options.addOption(linuxOption);
 
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
@@ -64,19 +67,19 @@ public class ExecuteJar {
         return null;
     }
 
-    private static void executeBashCmd(
+    private void executeBashCmd(
             String dcHost,
             int nodeId,
             boolean isActive,
             boolean local,
             boolean linux
     ) {
-        String jarCommand = "java -jar " + jarPath + " com.advos.MAPProtocol -c " +
-                (local ? configFile : configFileOnDC) + " -id " + nodeId;
+        String jarCommand = "java -jar " + this.jarPath + " com.advos.MAPProtocol -c " +
+                (local ? this.configFile : this.configFileOnDC) + " -id " + nodeId;
         if(isActive) jarCommand += " -a";
 
         String sshCommand = "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no " +
-                "-i " + sshKeyFile + " " + netid + "@" + dcHost + " '" + jarCommand + "'";
+                "-i " + this.sshKeyFile + " " + this.netid + "@" + dcHost + " '" + jarCommand + "'";
         String bashCmd = local ? jarCommand : sshCommand;
         String[] cmd;
 
@@ -92,34 +95,33 @@ public class ExecuteJar {
         logger.info(Arrays.toString(cmd));
 
         try {
-            Process process = Runtime.getRuntime().exec(cmd);
-
-            int exitCode = process.waitFor();
-
-            if (exitCode == 0) {
-                logger.info("SSH command executed successfully.");
-            } else {
-                logger.error("SSH command failed with exit code: " + exitCode);
-            }
-        } catch (IOException | InterruptedException e) {
+            Runtime.getRuntime().exec(cmd);
+        } catch (IOException e) {
             logger.error(e.getMessage());
         }
     }
+    
+    ExecuteJar(String[] args) {
+        CommandLine cmd = this.parseArgs(args);
+        this.local = cmd.hasOption("lo");
+        this.linux = System.getProperty("os.name").equalsIgnoreCase("linux");
+        this.configFile = cmd.getOptionValue("configFile");
 
-    public void execute(String[] args) {
-        CommandLine cmd = ExecuteJar.parseArgs(args);
-        boolean verbose = cmd.hasOption("v");
-        boolean local = cmd.hasOption("lo");
-        configFile = cmd.getOptionValue("configFile");
-
-        ConfigParser configParser = new ConfigParser(verbose);
+        ConfigParser configParser = new ConfigParser(cmd.hasOption("v"));
         try {
-            configParser.parseConfig(configFile);
+            configParser.parseConfig(this.configFile);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        Config config = configParser.getConfig();
+        this.config = configParser.getConfig();
 
+        this.netid = cmd.getOptionValue("netid");
+        this.jarPath = cmd.getOptionValue("jar");
+        this.configFileOnDC = cmd.getOptionValue("remoteConfigFile");
+        this.sshKeyFile = cmd.hasOption("ssh") ? cmd.getOptionValue("ssh") : "~/.ssh/id_rsa";
+    }
+
+    public void execute() {
         int n = config.getN();
         Random rand = new Random();
         int numActive = rand.nextInt(n) + 1;
@@ -133,18 +135,13 @@ public class ExecuteJar {
 
         logger.info(activeNodes.toString());
 
-        netid = cmd.getOptionValue("netid");
-        jarPath = cmd.getOptionValue("jar");
-        configFileOnDC = cmd.getOptionValue("remoteConfigFile");
-        sshKeyFile = cmd.hasOption("ssh") ? cmd.getOptionValue("ssh") : "~/.ssh/id_rsa";
-
         ExecutorService executorService = Executors.newFixedThreadPool(n);
 
-        for(NodeInfo nodeInfo: config.getNodes().values()) {
+        for(NodeInfo nodeInfo: this.config.getNodes().values()) {
             int nodeId = nodeInfo.getId();
             String dcHost = nodeInfo.getHost();
             executorService.submit(() ->
-                    executeBashCmd(dcHost, nodeId, activeNodes.contains(nodeId), local, cmd.hasOption("l")));
+                    executeBashCmd(dcHost, nodeId, activeNodes.contains(nodeId), this.local, this.linux));
         }
 
         executorService.shutdown();

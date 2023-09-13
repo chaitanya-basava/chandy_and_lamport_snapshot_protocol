@@ -11,24 +11,26 @@ import java.util.Random;
 
 public class MAPProtocol {
     private static final Logger logger = LoggerFactory.getLogger(MAPProtocol.class);
-    private Node node;
+    private final Node node;
+    private final int nodeId;
+    private final Config config;
 
     private static CommandLine parseArgs(String[] args) {
         Options options = new Options();
 
-        Option nodeId = new Option("id", "nodeId", true, "id of the node to be run");
-        nodeId.setRequired(true);
-        options.addOption(nodeId);
+        Option nodeIdOption = new Option("id", "nodeId", true, "id of the node to be run");
+        nodeIdOption.setRequired(true);
+        options.addOption(nodeIdOption);
 
-        Option configFile = new Option("c", "configFile", true, "config file path");
-        configFile.setRequired(true);
-        options.addOption(configFile);
+        Option configFileOption = new Option("c", "configFile", true, "config file path");
+        configFileOption.setRequired(true);
+        options.addOption(configFileOption);
 
-        Option verbose = new Option("v", "verbose", false, "Program verbosity");
-        options.addOption(verbose);
+        Option verboseOption = new Option("v", "verbose", false, "Program verbosity");
+        options.addOption(verboseOption);
 
-        Option isActive = new Option("a", "isActive", false, "Node active or not");
-        options.addOption(isActive);
+        Option isActiveOption = new Option("a", "isActive", false, "Node active or not");
+        options.addOption(isActiveOption);
 
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
@@ -43,11 +45,11 @@ public class MAPProtocol {
         return null;
     }
 
-    public void execute(String[] args) {
+    MAPProtocol(String[] args) {
         CommandLine cmd = MAPProtocol.parseArgs(args);
         boolean verbose = cmd.hasOption("v");
         boolean isActive = cmd.hasOption("a");
-        int nodeId = Integer.parseInt(cmd.getOptionValue("nodeId"));
+        this.nodeId = Integer.parseInt(cmd.getOptionValue("nodeId"));
         String configFile = cmd.getOptionValue("configFile");
 
         ConfigParser configParser = new ConfigParser(verbose);
@@ -56,12 +58,12 @@ public class MAPProtocol {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        Config config = configParser.getConfig();
+        this.config = configParser.getConfig();
 
-        this.node = new Node(config, config.getNode(nodeId), isActive);
+        this.node = new Node(config, config.getNode(this.nodeId), isActive);
+    }
 
-        logger.info("node info with id: {}\n{}", nodeId, node);
-
+    public void startProtocol() {
         while (true) {
             if(node.getIsActive()) {
                 int numMessagesToSend = randomInRange(config.getMinPerActive(), config.getMaxPerActive());
@@ -81,6 +83,13 @@ public class MAPProtocol {
                 }
             }
         }
+    }
+
+    public void execute() {
+        logger.info("node info with id: {}\n{}", this.nodeId, node);
+        Thread protoclThread = new Thread(this::startProtocol);
+        protoclThread.setDaemon(false);
+        protoclThread.start();
     }
 
     private static int randomInRange(int min, int max) {
