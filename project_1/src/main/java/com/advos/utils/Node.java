@@ -18,7 +18,9 @@ public class Node {
     private static final Logger logger = LoggerFactory.getLogger(Node.class);
     private final Config config;
     private final NodeInfo nodeInfo;
-    private final Map<Integer, Channel> channels = new HashMap<>();
+    private final Map<String, Channel> inChannels = new HashMap<>();
+    private final Map<Integer, Channel> outChannels = new HashMap<>();
+
     private final AtomicBoolean isActive = new AtomicBoolean(false);
     private final AtomicInteger messageCounter = new AtomicInteger(0);
 
@@ -43,6 +45,7 @@ public class Node {
                 Socket socket = server.accept();
                 Channel channel = new Channel(socket, this);
                 String socketInfo = socket.getInetAddress().getCanonicalHostName() + ":" + socket.getPort();
+                this.inChannels.put(socketInfo, channel);
 
                 Thread msgListenerThread = new Thread(
                         channel::receiveMessage,
@@ -64,16 +67,16 @@ public class Node {
             try {
                 Socket socket = new Socket(neighbours.get(idx).getHost(), neighbours.get(idx).getPort());
                 Channel channel = new Channel(socket, this);
-                this.channels.put(neighbours.get(idx).getId(), channel);
+                this.outChannels.put(neighbours.get(idx).getId(), channel);
                 logger.info("Connected to " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
                 idx++;
             } catch (IOException e) {
                 logger.error("Couldn't connect to " + neighbours.get(idx).getHost() + ":" + neighbours.get(idx).getPort());
-                MAPProtocol.sleep(2000);
+                MAPProtocol.sleep(500);
             }
         }
 
-        logger.info("Connected to " + this.channels.size() + " channel(s)");
+        logger.info("Connected to " + this.outChannels.size() + " channel(s)");
     }
 
     private int getRandomNeighbor() {
@@ -83,10 +86,11 @@ public class Node {
     }
 
     public void sendApplicationMessage() {
+        int msgNumber = this.messageCounter.incrementAndGet();
         int destId = this.getRandomNeighbor();
-        String message = "Message " + messageCounter + " from Node " + this.nodeInfo.getId() + " to Node " + destId;
-        channels.get(destId).sendMessage(message);
-        this.messageCounter.incrementAndGet();
+        String message = "Message " + msgNumber +
+                " from Node " + this.nodeInfo.getId() + " to Node " + destId;
+        outChannels.get(destId).sendMessage(message);
         logger.info("Sent [Node ID " + destId + "]: " + message);
     }
 
@@ -117,6 +121,7 @@ public class Node {
 
     public void close() {
         this.serverThread.interrupt();
-        this.channels.values().forEach(Channel::close);
+        this.outChannels.values().forEach(Channel::close);
+        this.inChannels.values().forEach(Channel::close);
     }
 }

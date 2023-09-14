@@ -34,7 +34,7 @@ public class Channel {
 
                 node.receiveApplicationMessage(msg);
             } catch (EOFException ignored) {
-                MAPProtocol.sleep(1000);
+                MAPProtocol.sleep(500);
             }
             catch (IOException e) {
                 logger.error(e.getMessage());
