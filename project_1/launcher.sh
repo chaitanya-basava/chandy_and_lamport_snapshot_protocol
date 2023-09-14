@@ -29,14 +29,11 @@ jar_name="$3"
 remote_proj_path="$4"
 net_id="$5"
 
-for hostNum in $(seq -f "%02g" 1 45); do
-    ((i=i%7)); ((i++==0)) && wait
-    ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "$rsa_path" "$net_id"@dc"$hostNum" killall -u "$net_id" &
-done
+bash -c ". cleanup.sh $net_id $rsa_path"
 
 scp -i "$rsa_path" "$config_file" "$net_id@dc01:$remote_proj_path/config.txt"
 scp -i "$rsa_path" "$jar_path$jar_name" "$net_id@dc01:$remote_proj_path$jar_name"
 
-java -jar "$jar_path$jar_name" com.advos.ExecuteJar -c "$config_file" -id "$net_id" -jar "$remote_proj_path$jar_name" -rc "$remote_proj_path/config.txt" -ssh $rsa_path
+java -jar "$jar_path$jar_name" com.advos.ExecuteJar -c "$config_file" -id "$net_id" -jar "$remote_proj_path$jar_name" -rc "$remote_proj_path/config.txt" -ssh "$rsa_path"
 
 exit 0
