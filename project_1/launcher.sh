@@ -14,26 +14,29 @@ pre_run_cleanup() {
     done <<< "$listen_lines"
 }
 
-if [ $# -eq 5 ]; then
+if [ $# -eq 4 ]; then
     rsa_path="$HOME/.ssh/id_rsa"
-elif [ $# -eq 6 ]; then
-    rsa_path="$6"
+elif [ $# -eq 5 ]; then
+    rsa_path="$5"
 else
-    echo "Usage: $0 <path to config file on local> <path to jar file> <jar file's name> <project directory on dc machine> <netid> <rsa file path>"
+    echo "Usage: $0 <project_path> <path to config file on local> <project directory on dc machine> <netid> <rsa file path>"
     exit 1
 fi
 
-config_file="$1"
-jar_path="$2"
-jar_name="$3"
-remote_proj_path="$4"
-net_id="$5"
+project_dir="$1"
+config_file="$2"
+remote_proj_path="$3"
+net_id="$4"
+
+mvn -f "$project_dir" clean package
 
 bash -c ". cleanup.sh $net_id $rsa_path"
 
-scp -i "$rsa_path" "$config_file" "$net_id@dc01:$remote_proj_path/config.txt"
-scp -i "$rsa_path" "$jar_path$jar_name" "$net_id@dc01:$remote_proj_path$jar_name"
+jar_path="$project_dir/target/project_1-1.0-SNAPSHOT-jar-with-dependencies.jar"
 
-java -jar "$jar_path$jar_name" com.advos.ExecuteJar -c "$config_file" -id "$net_id" -jar "$remote_proj_path$jar_name" -rc "$remote_proj_path/config.txt" -ssh "$rsa_path"
+scp -i "$rsa_path" "$config_file" "$net_id@dc01:$remote_proj_path/config.txt"
+scp -i "$rsa_path" "$jar_path" "$net_id@dc01:$remote_proj_path/project_1-1.0-SNAPSHOT-jar-with-dependencies.jar"
+
+java -jar "$jar_path" com.advos.ExecuteJar -c "$config_file" -id "$net_id" -jar "$remote_proj_path/project_1-1.0-SNAPSHOT-jar-with-dependencies.jar" -rc "$remote_proj_path/config.txt" -ssh "$rsa_path"
 
 exit 0

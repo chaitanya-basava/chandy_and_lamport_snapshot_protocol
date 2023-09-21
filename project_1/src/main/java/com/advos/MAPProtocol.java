@@ -13,7 +13,6 @@ public class MAPProtocol {
     private static final Logger logger = LoggerFactory.getLogger(MAPProtocol.class);
     private final Node node;
     private final int nodeId;
-    private final Config config;
 
     private static CommandLine parseArgs(String[] args) {
         Options options = new Options();
@@ -58,41 +57,19 @@ public class MAPProtocol {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        this.config = configParser.getConfig();
+        Config config = configParser.getConfig();
 
         this.node = new Node(config, config.getNode(this.nodeId), isActive);
     }
 
-    public void startProtocol() {
-        while (true) {
-            if(node.getIsActive()) {
-                int numMessagesToSend = randomInRange(config.getMinPerActive(), config.getMaxPerActive());
-
-                if(config.getMaxNumber() < node.getMessageCounter() + numMessagesToSend) {
-                    numMessagesToSend = config.getMaxNumber() - node.getMessageCounter();
-                }
-
-                try {
-                    for (int i = 0; i < numMessagesToSend; i++) {
-                        node.sendApplicationMessage();
-                        sleep(config.getMinSendDelay());
-                    }
-                    node.setIsActive(false);
-                } catch (Exception e) {
-                    logger.info(e.getMessage());
-                }
-            }
+    public void execute() {
+        logger.info("node info with id: {}\n{}", this.nodeId, node);
+        if(this.node.getLocalState().getIsActive()) {
+            this.node.sendApplicationMessages();
         }
     }
 
-    public void execute() {
-        logger.info("node info with id: {}\n{}", this.nodeId, node);
-        Thread protoclThread = new Thread(this::startProtocol);
-        protoclThread.setDaemon(false);
-        protoclThread.start();
-    }
-
-    private static int randomInRange(int min, int max) {
+    public static int randomInRange(int min, int max) {
         return new Random().nextInt(max - min + 1) + min;
     }
 

@@ -1,38 +1,39 @@
 package com.advos.utils;
 
 import com.advos.MAPProtocol;
+import com.advos.message.ApplicationMessage;
+import com.advos.message.Message;
 import com.advos.models.Config;
 import com.advos.models.NodeInfo;
+import com.advos.state.LocalState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
-public class Node {
+public class Node implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(Node.class);
-    private final Config config;
+    private transient final Config config;
+
     private final NodeInfo nodeInfo;
-    private final Map<String, Channel> inChannels = new HashMap<>();
-    private final Map<Integer, Channel> outChannels = new HashMap<>();
-
-    private final AtomicBoolean isActive = new AtomicBoolean(false);
-    private final AtomicInteger messageCounter = new AtomicInteger(0);
-
-    private final Thread serverThread;
+    private final LocalState localState;
+    private transient final Map<String, Channel> inChannels = new HashMap<>();
+    private transient final Map<Integer, Channel> outChannels = new HashMap<>();
 
     public Node(Config config, NodeInfo nodeInfo, boolean isActive) {
         this.config = config;
         this.nodeInfo = nodeInfo;
-        this.isActive.set(isActive);
+        this.localState = new LocalState(isActive, this.config);
 
-        this.serverThread = new Thread(this::startServer, "Socket Server Thread");
-        this.serverThread.start();
+        new Thread(this::startServer, "Socket Server Thread").start();
 
         this.startClient();
     }
@@ -43,7 +44,7 @@ public class Node {
             server.bind(new InetSocketAddress(nodeInfo.getPort()));
             while(true) {
                 Socket socket = server.accept();
-                Channel channel = new Channel(socket, this);
+                Channel channel = new Channel(socket, this, -1);
                 String socketInfo = socket.getInetAddress().getCanonicalHostName() + ":" + socket.getPort();
                 this.inChannels.put(socketInfo, channel);
 
@@ -66,7 +67,7 @@ public class Node {
         while(idx !=  neighbours.size()) {
             try {
                 Socket socket = new Socket(neighbours.get(idx).getHost(), neighbours.get(idx).getPort());
-                Channel channel = new Channel(socket, this);
+                Channel channel = new Channel(socket, this, neighbours.get(idx).getId());
                 this.outChannels.put(neighbours.get(idx).getId(), channel);
                 logger.info("Connected to " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
                 idx++;
@@ -85,42 +86,72 @@ public class Node {
         return neighbors.get(idx).getId();
     }
 
-    public void sendApplicationMessage() {
-        int msgNumber = this.messageCounter.incrementAndGet();
-        int destId = this.getRandomNeighbor();
-        String message = "Message " + msgNumber +
-                " from Node " + this.nodeInfo.getId() + " to Node " + destId;
-        outChannels.get(destId).sendMessage(message);
-        logger.info("Sent [Node ID " + destId + "]: " + message);
+    private void send(int destId, Message message) {
+        this.outChannels.get(destId).sendMessage(message);
     }
 
-    public void receiveApplicationMessage(String msg) {
-        logger.info("Received: " + msg);
-        if(this.messageCounter.get() < this.config.getMaxNumber()) this.setIsActive(true);
+    public void sendApplicationMessage() {
+        int msgNumber = this.localState.incrementMessageCounter();
+        this.localState.incrementVectorClockAti(this.nodeInfo.getId());
+        int destId = this.getRandomNeighbor();
+        Message message = new ApplicationMessage("Message " + msgNumber +
+                " from Node " + this.nodeInfo.getId() + " to Node " + destId, this.localState.getVectorClock(), this);
+        this.send(destId, message);
+        logger.info("Sent: " + message);
+    }
+
+    public void sendApplicationMessages() {
+        int numMessagesToSend = MAPProtocol.randomInRange(config.getMinPerActive(), config.getMaxPerActive());
+
+        if(config.getMaxNumber() < this.getLocalState().getMessageCounter() + numMessagesToSend) {
+            numMessagesToSend = config.getMaxNumber() - this.getLocalState().getMessageCounter();
+        }
+
+        try {
+            for (int i = 0; i < numMessagesToSend; i++) {
+                if(!this.localState.getIsActive() || this.localState.getMessageCounter() >= this.config.getMaxNumber()) break;
+                this.sendApplicationMessage();
+                MAPProtocol.sleep(config.getMinSendDelay());
+            }
+            this.getLocalState().setIsActive(false);
+        } catch (Exception e) {
+            logger.info(e.getMessage());
+        }
+    }
+
+    public void receiveApplicationMessage(ApplicationMessage msg) {
+        synchronized (this.localState) {
+            for (int i = 0; i < this.localState.getClockSize(); i++) {
+                this.localState.setVectorClockAti(i, Math.max(this.localState.getVectorClockAti(i), msg.getPiggybackedClockAti(i)));
+            }
+            this.localState.incrementVectorClockAti(this.nodeInfo.getId());
+
+            logger.info("Received: " + msg + " [Vector Clock] " + this.localState.getVectorClock().toString() + "\n");
+
+            if(this.localState.getMessageCounter() < this.config.getMaxNumber()) {
+                this.localState.setIsActive(true);
+                this.sendApplicationMessages();
+            }
+        }
     }
 
     @Override
     public String toString() {
         return (
                 "[Node ID] " + this.nodeInfo.getId() + " is " +
-                        (this.getIsActive() ? "active" : "inactive") + "\n" + this.nodeInfo
+                        (this.localState.getIsActive() ? "active" : "inactive") + "\n" + this.nodeInfo
         );
     }
 
-    public boolean getIsActive() {
-        return this.isActive.get();
+    public NodeInfo getNodeInfo() {
+        return this.nodeInfo;
     }
 
-    public void setIsActive(boolean active) {
-        this.isActive.set(active);
-    }
-
-    public int getMessageCounter() {
-        return this.messageCounter.get();
+    public LocalState getLocalState() {
+        return localState;
     }
 
     public void close() {
-        this.serverThread.interrupt();
         this.outChannels.values().forEach(Channel::close);
         this.inChannels.values().forEach(Channel::close);
     }

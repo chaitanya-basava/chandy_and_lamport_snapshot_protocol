@@ -1,14 +1,15 @@
 package com.advos.models;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class NodeInfo {
+public class NodeInfo implements Serializable {
     private final int id;
     private final String host;
     private final int port;
-    List<Integer> neighbors = new ArrayList<>();
-    List<NodeInfo> neighborNodesInfo = new ArrayList<>();
+    private List<Integer> neighbors = new ArrayList<>();
+    private List<NodeInfo> neighborNodesInfo = new ArrayList<>();
 
     public NodeInfo(int id, String host, int port) {
         this.id = id;

@@ -10,7 +10,7 @@ public class Config {
     private final int minSendDelay;
     private final int snapshotDelay;
     private final int maxNumber;
-    Map<Integer, NodeInfo> nodes = new HashMap<>();
+    private final Map<Integer, NodeInfo> nodes = new HashMap<>();
 
     public Config(
             int n, int minPerActive,
@@ -82,15 +82,6 @@ public class Config {
         }
 
         return str.toString();
-    }
-
-    public int getNodeIdFromHostPort(String host, int port) {
-        for (NodeInfo nodeInfo : this.nodes.values()) {
-            if (nodeInfo.getHost().equals(host) && nodeInfo.getPort() == port) {
-                return nodeInfo.getId();
-            }
-        }
-        return -1;
     }
 
     public Map<Integer, NodeInfo> getNodes() {
