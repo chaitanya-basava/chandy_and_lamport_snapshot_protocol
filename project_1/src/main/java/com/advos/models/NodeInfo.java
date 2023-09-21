@@ -1,15 +1,15 @@
 package com.advos.models;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class NodeInfo implements Serializable {
+public class NodeInfo {
     private final int id;
     private final String host;
     private final int port;
     private List<Integer> neighbors = new ArrayList<>();
     private List<NodeInfo> neighborNodesInfo = new ArrayList<>();
+    private int parentNodeId;
 
     public NodeInfo(int id, String host, int port) {
         this.id = id;
@@ -45,13 +45,22 @@ public class NodeInfo implements Serializable {
         this.neighbors = neighbors;
     }
 
+    public int getParentNodeId() {
+        return this.parentNodeId;
+    }
+
+    public void setParentNodeId(int parentNodeId) {
+        this.parentNodeId = parentNodeId;
+    }
+
     @Override
     public String toString() {
         return (
                 "Node: " + this.getId() +
                         "\nHost: " + this.getHost() +
                         "\nPort: " + this.getPort() +
-                        "\nNeighbors: " + this.getNeighbors().toString()
+                        "\nNeighbors: " + this.getNeighbors().toString() +
+                        "\nParent Node: " + this.getParentNodeId()
         );
     }
 }

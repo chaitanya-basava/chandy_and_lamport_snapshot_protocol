@@ -7,12 +7,16 @@ import org.apache.commons.cli.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
 import java.util.Random;
 
 public class MAPProtocol {
     private static final Logger logger = LoggerFactory.getLogger(MAPProtocol.class);
     private final Node node;
     private final int nodeId;
+    private final Config config;
 
     private static CommandLine parseArgs(String[] args) {
         Options options = new Options();
@@ -57,9 +61,29 @@ public class MAPProtocol {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        Config config = configParser.getConfig();
-
+        this.config = configParser.getConfig();
+        buildSpanningTree();
         this.node = new Node(config, config.getNode(this.nodeId), isActive);
+    }
+
+    private void buildSpanningTree() {
+        boolean[] visited = new boolean[this.config.getN()];
+        Queue<Integer> queue = new LinkedList<>();
+        queue.add(0);
+        visited[0] = true;
+        this.config.getNode(0).setParentNodeId(-1);
+
+        while(!queue.isEmpty()) {
+            int currentId = queue.poll();
+            List<Integer> neighbours = this.config.getNode(currentId).getNeighbors();
+            for(Integer neighbourId : neighbours) {
+                if(!visited[neighbourId]) {
+                    visited[neighbourId] = true;
+                    queue.add(neighbourId);
+                    this.config.getNode(neighbourId).setParentNodeId(currentId);
+                }
+            }
+        }
     }
 
     public void execute() {

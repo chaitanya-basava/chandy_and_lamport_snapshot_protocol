@@ -30,7 +30,7 @@ net_id="$4"
 
 mvn -f "$project_dir" clean package
 
-bash -c ". cleanup.sh $net_id $rsa_path"
+#bash -c ". cleanup.sh $net_id $rsa_path"
 
 jar_path="$project_dir/target/project_1-1.0-SNAPSHOT-jar-with-dependencies.jar"
 

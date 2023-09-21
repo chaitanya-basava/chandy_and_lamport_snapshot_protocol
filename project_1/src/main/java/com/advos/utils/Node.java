@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -19,14 +18,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-public class Node implements Serializable {
+public class Node {
     private static final Logger logger = LoggerFactory.getLogger(Node.class);
-    private transient final Config config;
-
+    private final Config config;
     private final NodeInfo nodeInfo;
     private final LocalState localState;
-    private transient final Map<String, Channel> inChannels = new HashMap<>();
-    private transient final Map<Integer, Channel> outChannels = new HashMap<>();
+    private final Map<String, Channel> inChannels = new HashMap<>();
+    private final Map<Integer, Channel> outChannels = new HashMap<>();
 
     public Node(Config config, NodeInfo nodeInfo, boolean isActive) {
         this.config = config;
@@ -99,16 +97,17 @@ public class Node implements Serializable {
 
         try {
             for (int i = 0; i < numMessagesToSend; i++) {
-                if(!this.localState.getIsActive() || this.localState.getMessageCounter() >= this.config.getMaxNumber()) break;
-
-                int msgNumber = this.localState.incrementMessageCounter();
-                this.localState.incrementVectorClockAti(this.nodeInfo.getId());
-                int destId = this.getRandomNeighbor();
-                Message message = new ApplicationMessage("Message " + msgNumber +
-                        " from Node " + this.nodeInfo.getId() + " to Node " + destId,
-                        this.localState.getVectorClock(), this.getNodeInfo().getId());
-                this.send(destId, message);
-                logger.info("Sent: " + message);
+                synchronized(this.localState) {
+                    if(!this.localState.getIsActive() || this.localState.getMessageCounter() >= this.config.getMaxNumber()) break;
+                    int msgNumber = this.localState.incrementMessageCounter();
+                    this.localState.incrementVectorClockAti(this.nodeInfo.getId());
+                    int destId = this.getRandomNeighbor();
+                    Message message = new ApplicationMessage("Message " + msgNumber +
+                            " from Node " + this.nodeInfo.getId() + " to Node " + destId,
+                            this.localState.getVectorClock(), this.getNodeInfo().getId());
+                    this.send(destId, message);
+                    logger.info("Sent: " + message);
+                }
 
                 MAPProtocol.sleep(config.getMinSendDelay());
             }
@@ -119,7 +118,7 @@ public class Node implements Serializable {
     }
 
     public void receiveApplicationMessage(ApplicationMessage msg) {
-        synchronized (this.localState) {
+        synchronized(this.localState) {
             for (int i = 0; i < this.localState.getClockSize(); i++) {
                 this.localState.setVectorClockAti(i, Math.max(this.localState.getVectorClockAti(i), msg.getPiggybackedClockAti(i)));
             }
