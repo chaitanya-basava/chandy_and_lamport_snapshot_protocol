@@ -1,28 +1,26 @@
 package com.advos.message;
 
-import com.advos.utils.Node;
-
 import java.io.Serializable;
 
 abstract public class Message implements Serializable {
     private final String msg;
-    private final Node sourceNode;
+    private final int sourceNodeId;
 
-    protected Message(String msg, Node sourceNode) {
+    protected Message(String msg, int sourceNodeId) {
         this.msg = msg;
-        this.sourceNode = sourceNode;
+        this.sourceNodeId = sourceNodeId;
     }
 
     public String getMsg() {
         return msg;
     }
 
-    public Node getSourceNode() {
-        return sourceNode;
+    public int getSourceNodeId() {
+        return sourceNodeId;
     }
 
     @Override
     public String toString() {
-        return "[from: Node-" + this.getSourceNode().getNodeInfo().getId() + "] " + this.getMsg();
+        return "[from: Node-" + sourceNodeId + "] " + this.getMsg();
     }
 }

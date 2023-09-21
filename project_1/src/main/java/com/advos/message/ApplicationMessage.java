@@ -1,14 +1,12 @@
 package com.advos.message;
 
-import com.advos.utils.Node;
-
 import java.util.List;
 
 public class ApplicationMessage extends Message {
     private final List<Integer> piggybackedClock;
 
-    public ApplicationMessage(String msg, List<Integer> clock, Node sourceNode) {
-        super(msg, sourceNode);
+    public ApplicationMessage(String msg, List<Integer> clock, int sourceNodeId) {
+        super(msg, sourceNodeId);
         this.piggybackedClock = clock;
     }
 

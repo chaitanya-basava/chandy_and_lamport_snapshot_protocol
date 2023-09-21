@@ -90,16 +90,6 @@ public class Node implements Serializable {
         this.outChannels.get(destId).sendMessage(message);
     }
 
-    public void sendApplicationMessage() {
-        int msgNumber = this.localState.incrementMessageCounter();
-        this.localState.incrementVectorClockAti(this.nodeInfo.getId());
-        int destId = this.getRandomNeighbor();
-        Message message = new ApplicationMessage("Message " + msgNumber +
-                " from Node " + this.nodeInfo.getId() + " to Node " + destId, this.localState.getVectorClock(), this);
-        this.send(destId, message);
-        logger.info("Sent: " + message);
-    }
-
     public void sendApplicationMessages() {
         int numMessagesToSend = MAPProtocol.randomInRange(config.getMinPerActive(), config.getMaxPerActive());
 
@@ -110,7 +100,16 @@ public class Node implements Serializable {
         try {
             for (int i = 0; i < numMessagesToSend; i++) {
                 if(!this.localState.getIsActive() || this.localState.getMessageCounter() >= this.config.getMaxNumber()) break;
-                this.sendApplicationMessage();
+
+                int msgNumber = this.localState.incrementMessageCounter();
+                this.localState.incrementVectorClockAti(this.nodeInfo.getId());
+                int destId = this.getRandomNeighbor();
+                Message message = new ApplicationMessage("Message " + msgNumber +
+                        " from Node " + this.nodeInfo.getId() + " to Node " + destId,
+                        this.localState.getVectorClock(), this.getNodeInfo().getId());
+                this.send(destId, message);
+                logger.info("Sent: " + message);
+
                 MAPProtocol.sleep(config.getMinSendDelay());
             }
             this.getLocalState().setIsActive(false);

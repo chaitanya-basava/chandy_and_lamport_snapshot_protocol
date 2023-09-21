@@ -10,6 +10,8 @@ import java.util.concurrent.atomic.AtomicIntegerArray;
 public class LocalState extends State {
     private final AtomicBoolean isActive;
     private final AtomicInteger messageCounter;
+
+    // virtual vector clock of the node
     private final AtomicIntegerArray vectorClock;
 
     public LocalState(boolean isActive, Config config) {
