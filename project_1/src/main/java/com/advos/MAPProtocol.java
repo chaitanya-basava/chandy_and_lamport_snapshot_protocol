@@ -64,6 +64,7 @@ public class MAPProtocol {
         this.config = configParser.getConfig();
         buildSpanningTree();
         this.node = new Node(config, config.getNode(this.nodeId), isActive);
+        MAPProtocol.sleep(Config.INIT_DELAY);
     }
 
     private void buildSpanningTree() {

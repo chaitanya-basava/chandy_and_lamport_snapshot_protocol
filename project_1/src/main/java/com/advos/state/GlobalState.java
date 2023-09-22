@@ -9,7 +9,7 @@ public class GlobalState extends State {
     private final Map<Integer, LocalState> localStates;
     private final List<ChannelState> channelStates;
 
-    GlobalState() {
+    public GlobalState() {
         this.localStates = new HashMap<>();
         this.channelStates = new ArrayList<>();
     }
@@ -32,5 +32,10 @@ public class GlobalState extends State {
 
     public LocalState getLocalStateForNode(int nodeId) {
         return this.localStates.get(nodeId);
+    }
+
+    public void clear() {
+        this.localStates.clear();
+        this.channelStates.clear();
     }
 }

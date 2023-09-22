@@ -1,22 +1,17 @@
 package com.advos.state;
 
-import java.util.List;
+import com.advos.message.ApplicationMessage;
 
 public class ChannelState extends State {
     private final int sourceNodeId;
     private final int  destinationNodeId;
 
-    // vector clock piggybacked in the message
-    private final List<Integer> vectorClock;
+    private final ApplicationMessage msg;
 
-    public ChannelState(int sourceNodeId, int destinationNodeId, List<Integer> vectorClock) {
+    public ChannelState(int sourceNodeId, int destinationNodeId, ApplicationMessage msg) {
         this.sourceNodeId = sourceNodeId;
         this.destinationNodeId = destinationNodeId;
-        this.vectorClock = vectorClock;
-    }
-
-    public List<Integer> getVectorClock() {
-        return vectorClock;
+        this.msg = msg;
     }
 
     public int getSourceNodeId() {
@@ -25,5 +20,9 @@ public class ChannelState extends State {
 
     public int getDestinationNodeId() {
         return destinationNodeId;
+    }
+
+    public ApplicationMessage getMsg() {
+        return msg;
     }
 }
