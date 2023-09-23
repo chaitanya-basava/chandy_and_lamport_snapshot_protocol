@@ -4,8 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Config {
-    public static final int DEFAULT_ACTIVE_NODE_ID = 0;
-    public static final int INIT_DELAY = 2000;
+    public static final int DEFAULT_SNAPSHOT_NODE_ID = 0;
+    public static final int INIT_DELAY = 10000;
     public static final int RETRY_CLIENT_CONNECTION_DELAY = 500;
     private final int n;
     private final int minPerActive;

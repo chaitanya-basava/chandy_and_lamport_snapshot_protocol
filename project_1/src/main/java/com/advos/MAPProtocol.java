@@ -1,22 +1,21 @@
 package com.advos;
 
 import com.advos.models.Config;
+import com.advos.state.GlobalState;
 import com.advos.utils.ConfigParser;
 import com.advos.utils.Node;
 import org.apache.commons.cli.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
-import java.util.Random;
+import java.util.*;
 
 public class MAPProtocol {
     private static final Logger logger = LoggerFactory.getLogger(MAPProtocol.class);
     private final Node node;
     private final int nodeId;
     private final Config config;
+    private static final List<GlobalState> nodeGlobalStates = new ArrayList<>();
 
     private static CommandLine parseArgs(String[] args) {
         Options options = new Options();
@@ -85,6 +84,15 @@ public class MAPProtocol {
                 }
             }
         }
+    }
+
+    public static List<GlobalState> getNodeGlobalStates() {
+        return MAPProtocol.nodeGlobalStates;
+    }
+
+    public static void addNodeGlobalState(GlobalState nodeGlobalState) {
+        MAPProtocol.nodeGlobalStates.add(nodeGlobalState);
+        logger.info("node global state: {}", nodeGlobalState);
     }
 
     public void execute() {

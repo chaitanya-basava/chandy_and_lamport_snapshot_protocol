@@ -22,6 +22,17 @@ public class LocalState extends State {
         this.vectorClock = new AtomicIntegerArray(config.getN());
     }
 
+    public LocalState(boolean isActive, boolean isBlue, int messageCounter, List<Integer> vectorClock) {
+        this.isActive = new AtomicBoolean(isActive);
+        this.isBlue = new AtomicBoolean(isBlue);
+        this.messageCounter = new AtomicInteger(messageCounter);
+        this.vectorClock = new AtomicIntegerArray(
+                vectorClock.stream()
+                        .mapToInt(Integer::intValue)
+                        .toArray()
+        );
+    }
+
     public boolean getIsActive() {
         return this.isActive.get();
     }

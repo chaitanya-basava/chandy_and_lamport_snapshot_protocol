@@ -64,6 +64,9 @@ public class Channel {
                 } else if (msg instanceof MarkerMessage) {
                     MarkerMessage markerMsg = (MarkerMessage) msg;
                     this.node.receiveMarkerMessage(markerMsg);
+                } else if (msg instanceof SnapshotMessage) {
+                    SnapshotMessage snapshotMsg = (SnapshotMessage) msg;
+                    this.node.receiveSnapshotMessage(snapshotMsg);
                 }
             } catch (EOFException ignored) {
                 MAPProtocol.sleep(500);

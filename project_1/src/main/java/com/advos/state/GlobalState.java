@@ -35,7 +35,13 @@ public class GlobalState extends State {
     }
 
     public void clear() {
-        this.localStates.clear();
-        this.channelStates.clear();
+        synchronized(this) {
+            synchronized(this.localStates) {
+                this.localStates.clear();
+            }
+            synchronized(this.channelStates) {
+                this.channelStates.clear();
+            }
+        }
     }
 }
