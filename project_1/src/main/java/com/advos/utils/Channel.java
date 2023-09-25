@@ -34,6 +34,10 @@ public class Channel {
         }
     }
 
+    public Channel(String hostname, int port, Node node, int neighbourId) throws IOException {
+        this(new Socket(hostname, port), node, neighbourId);
+    }
+
     public void receiveUrgentMessage() {
         while(true) {
             try {
@@ -57,8 +61,7 @@ public class Channel {
         while (true) {
             try {
                 Message msg = (Message) this.in.readObject();
-                if(msg instanceof TerminationMessage) break;
-                else if (msg instanceof ApplicationMessage) {
+                if (msg instanceof ApplicationMessage) {
                     ApplicationMessage appMsg = (ApplicationMessage) msg;
                     this.node.receiveApplicationMessage(appMsg);
                 } else if (msg instanceof MarkerMessage) {
@@ -67,12 +70,14 @@ public class Channel {
                 } else if (msg instanceof SnapshotMessage) {
                     SnapshotMessage snapshotMsg = (SnapshotMessage) msg;
                     this.node.receiveSnapshotMessage(snapshotMsg);
+                } else if (msg instanceof TerminationMessage) {
+                    this.node.propagateTermination();
                 }
             } catch (EOFException ignored) {
                 MAPProtocol.sleep(500);
             }
             catch (IOException e) {
-                logger.error(e.getMessage());
+                break;
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }
@@ -84,7 +89,7 @@ public class Channel {
             this.out.writeObject(message);
             this.out.flush();
         } catch (IOException e) {
-            logger.error("Error while receiving from " + this.neighbourId + ": " + e.getMessage());
+            logger.error("Error while sending to " + this.neighbourId + ": " + e.getMessage());
         }
     }
 

@@ -85,16 +85,18 @@ public class MAPProtocol {
         }
     }
 
-    public static List<GlobalState> getNodeGlobalStates() {
-        return MAPProtocol.nodeGlobalStates;
-    }
-
     public static void addNodeGlobalState(GlobalState nodeGlobalState) {
         MAPProtocol.nodeGlobalStates.add(nodeGlobalState);
-        logger.info("node global state: {}", nodeGlobalState);
     }
 
     public void execute() {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            logger.info("Termination condition met, terminating node " + this.node.getNodeInfo().getId() + "!!!");
+            this.cleanup();
+            logger.info("\n");
+            MAPProtocol.validateSnapshots(this.config.getN());
+        }, "Shutdown Listener"));
+
         logger.info("node info with id: {}\n{}", this.nodeId, node);
         new Thread(this.node::reinitializeSnapshotProcess, "Snapshot Initialization Thread").start();
         if(this.node.getLocalState().getIsActive()) {
@@ -112,6 +114,10 @@ public class MAPProtocol {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public synchronized static void validateSnapshots(int n) {
+        // TODO: implement snapshot consistency validation
     }
 
     public void cleanup() {
