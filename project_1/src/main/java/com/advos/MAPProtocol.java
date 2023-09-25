@@ -63,7 +63,6 @@ public class MAPProtocol {
         this.config = configParser.getConfig();
         buildSpanningTree();
         this.node = new Node(config, config.getNode(this.nodeId), isActive);
-        MAPProtocol.sleep(Config.INIT_DELAY);
     }
 
     private void buildSpanningTree() {
@@ -97,8 +96,9 @@ public class MAPProtocol {
 
     public void execute() {
         logger.info("node info with id: {}\n{}", this.nodeId, node);
+        new Thread(this.node::reinitializeSnapshotProcess, "Snapshot Initialization Thread").start();
         if(this.node.getLocalState().getIsActive()) {
-            this.node.sendApplicationMessages();
+            new Thread(this.node::sendApplicationMessages, "Application Initialization Thread").start();
         }
     }
 

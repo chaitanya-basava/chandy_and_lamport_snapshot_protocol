@@ -35,8 +35,8 @@ mvn -f "$project_dir" clean package
 jar_path="$project_dir/target/project_1-1.0-SNAPSHOT-jar-with-dependencies.jar"
 
 scp -i "$rsa_path" "$config_file" "$net_id@dc01:$remote_proj_path/config.txt"
-scp -i "$rsa_path" "$jar_path" "$net_id@dc01:$remote_proj_path/project_1-1.0-SNAPSHOT-jar-with-dependencies.jar"
+scp -i "$rsa_path" "$jar_path" "$net_id@dc01:$remote_proj_path/project_1-1.0.jar"
 
-java -jar "$jar_path" com.advos.ExecuteJar -c "$config_file" -id "$net_id" -jar "$remote_proj_path/project_1-1.0-SNAPSHOT-jar-with-dependencies.jar" -rc "$remote_proj_path/config.txt" -ssh "$rsa_path"
+java -jar "$jar_path" com.advos.ExecuteJar -c "$config_file" -id "$net_id" -jar "$remote_proj_path/project_1-1.0.jar" -rc "$remote_proj_path/config.txt" -ssh "$rsa_path"
 
 exit 0

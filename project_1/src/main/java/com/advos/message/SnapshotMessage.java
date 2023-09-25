@@ -28,4 +28,9 @@ public class SnapshotMessage extends Message {
     public int getOriginalNodeId() {
         return originalNodeId;
     }
+
+    @Override
+    public String toString() {
+        return super.toString() + " Snapshot from " + this.getOriginalNodeId();
+    }
 }

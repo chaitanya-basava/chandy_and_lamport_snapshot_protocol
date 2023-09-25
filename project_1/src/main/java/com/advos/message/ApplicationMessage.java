@@ -20,6 +20,6 @@ public class ApplicationMessage extends Message {
 
     @Override
     public String toString() {
-        return super.toString() + " [Piggybacked Clock] " + this.getPiggybackedClock().toString() + "\n";
+        return super.toString() + " [Piggybacked Clock] " + this.getPiggybackedClock().toString() + " ";
     }
 }

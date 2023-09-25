@@ -26,6 +26,7 @@ public class Node {
     private final Map<Integer, Channel> inChannels = new HashMap<>();
     private final Map<Integer, Channel> outChannels = new HashMap<>();
     private final Map<Integer, Boolean> receivedMarker = new HashMap<>();
+    private int snapshotCount = 1;
 
     public Node(Config config, NodeInfo nodeInfo, boolean isActive) {
         this.config = config;
@@ -38,6 +39,8 @@ public class Node {
 
         new Thread(this::startServer, "Socket Server Thread").start();
         this.startClient();
+
+        MAPProtocol.sleep(Config.INIT_DELAY);
     }
 
     private void startServer() {
@@ -60,7 +63,7 @@ public class Node {
         }
     }
 
-    private void reinitializeSnapshotProcess() {
+    public void reinitializeSnapshotProcess() {
         synchronized (this) {
             // set all in-channels to false
             this.receivedMarker.replaceAll((i, v) -> false);
@@ -71,10 +74,11 @@ public class Node {
             // clear global state
             this.globalState.clear();
             this.localStateSnapshot = null;
-            this.localState.setIsBlue(true);
         }
 
         if(this.getNodeInfo().getId() == Config.DEFAULT_SNAPSHOT_NODE_ID) {
+            logger.info("initializing '" + snapshotCount++ + "' snapshot process");
+            this.localState.setIsBlue(true);
             MAPProtocol.sleep(config.getSnapshotDelay());
             this.receiveMarkerMessage(new MarkerMessage(-1));
         }
@@ -85,7 +89,7 @@ public class Node {
             if(this.globalState.getLocalStates().size() == this.config.getN()) {
                 // save global state to global states list
                 MAPProtocol.addNodeGlobalState(this.globalState);
-                this.reinitializeSnapshotProcess();
+                new Thread(this::reinitializeSnapshotProcess, "Snapshot Re-Initialization Thread - Global snapshot recorded").start();
             }
         }
     }
@@ -125,11 +129,9 @@ public class Node {
 
         // create a channel with parent node, if a channel doesn't exist [for sending snapshot messages]
         int parentId = this.getNodeInfo().getParentNodeId();
-        while(parentId != -1 && !this.outChannels.containsKey(this.getNodeInfo().getParentNodeId())) {
+        while(parentId != -1 && !this.outChannels.containsKey(parentId)) {
             if(createSocket(config.getNode(parentId).getHost(), config.getNode(parentId).getPort(), parentId)) break;
         }
-
-        new Thread(this::reinitializeSnapshotProcess, "Snapshot Initialization Thread").start();
 
         logger.info("Connected to " + this.outChannels.size() + " channel(s)");
     }
@@ -145,40 +147,33 @@ public class Node {
     }
 
     public void sendApplicationMessages() {
+        if(!this.getLocalState().getIsActive()) return;
+
         int numMessagesToSend = MAPProtocol.randomInRange(config.getMinPerActive(), config.getMaxPerActive());
 
-        synchronized(this.localState) {
-            if(!this.getLocalState().getIsActive()) return;
-
-            if (config.getMaxNumber() < this.getLocalState().getMessageCounter() + numMessagesToSend) {
-                numMessagesToSend = config.getMaxNumber() - this.getLocalState().getMessageCounter();
+        for (int i = 0; i < numMessagesToSend; i++) {
+            int destId = this.getRandomNeighbor();
+            synchronized(this.localState) {
+                if (!this.localState.getIsActive() || this.localState.getMessageCounter() >= this.config.getMaxNumber())
+                    break;
+                int msgNumber = this.localState.incrementMessageCounter();
+                this.localState.incrementVectorClockAti(this.nodeInfo.getId());
+                Message message = new ApplicationMessage("Message " + msgNumber +
+                        " from Node " + this.nodeInfo.getId() + " to Node " + destId,
+                        this.localState.getVectorClock(), this.getNodeInfo().getId());
+                this.send(destId, message);
+                logger.info("Sent: " + message + " " + config.getMinSendDelay());
             }
 
-            try {
-                for (int i = 0; i < numMessagesToSend; i++) {
-                    if (!this.localState.getIsActive() || this.localState.getMessageCounter() >= this.config.getMaxNumber())
-                        break;
-                    int msgNumber = this.localState.incrementMessageCounter();
-                    this.localState.incrementVectorClockAti(this.nodeInfo.getId());
-                    int destId = this.getRandomNeighbor();
-                    Message message = new ApplicationMessage("Message " + msgNumber +
-                            " from Node " + this.nodeInfo.getId() + " to Node " + destId,
-                            this.localState.getVectorClock(), this.getNodeInfo().getId());
-                    this.send(destId, message);
-                    logger.info("Sent: " + message);
-
-                    MAPProtocol.sleep(config.getMinSendDelay());
-                }
-                this.getLocalState().setIsActive(false);
-            } catch (Exception e) {
-                logger.info(e.getMessage());
-            }
+            MAPProtocol.sleep(config.getMinSendDelay());
         }
+        this.getLocalState().setIsActive(false);
     }
 
     private void sendSnapshotMessage(int originalId) {
         synchronized(this.channelStates) {
             SnapshotMessage snapshotMessage = new SnapshotMessage(this.getNodeInfo().getId(), originalId, this.localState, this.channelStates);
+            // logger.info("Sending: " + snapshotMessage + " to " + this.getNodeInfo().getParentNodeId() + " color: " + this.localState.getIsBlue());
             this.send(this.getNodeInfo().getParentNodeId(), snapshotMessage);
         }
     }
@@ -189,8 +184,11 @@ public class Node {
                 this.localState.setVectorClockAti(i, Math.max(this.localState.getVectorClockAti(i), msg.getPiggybackedClockAti(i)));
             }
             this.localState.incrementVectorClockAti(this.nodeInfo.getId());
+            this.localState.incrementMessageReceiveCounter();
 
-            logger.info("Received: " + msg + " [Vector Clock] " + this.localState.getVectorClock().toString() + "\n");
+            logger.info("Received [Application" +
+                    this.localState.getMessageReceiveCounter() + "]: " + msg +
+                    " [Vector Clock] " + this.localState.getVectorClock().toString() + "\n");
 
             // record channel state if marker message already received by this node
             if(!this.localState.getIsBlue() && Boolean.TRUE.equals(!this.receivedMarker.get(msg.getSourceNodeId()))) {
@@ -199,53 +197,60 @@ public class Node {
                 }
             }
 
-            if(this.localState.getMessageCounter() < this.config.getMaxNumber()) {
+            if(this.localState.getMessageCounter() < this.config.getMaxNumber() && !this.localState.getIsActive()) {
                 this.localState.setIsActive(true);
-                this.sendApplicationMessages();
+                new Thread(
+                        this::sendApplicationMessages, "Application messaging thread - " + msg.getSourceNodeId()
+                ).start();
             }
         }
     }
 
-    public void receiveMarkerMessage(MarkerMessage receivedMarker) {
-        synchronized(this) {
-            synchronized(this.localState) {
-                if(this.localState.getIsBlue()) {
-                    this.localState.invertIsBlue(); // change to red
+    public void receiveMarkerMessage(MarkerMessage markerMessage) {
+        while(this.receivedMarker.size() < this.nodeInfo.getNeighbors().size()) {
+            MAPProtocol.sleep(Config.RETRY_CLIENT_CONNECTION_DELAY);
+        }
+        logger.info("Received [Marker]: " + markerMessage + " color: " + this.getLocalState().getIsBlue() + "\n");
 
-                    if(this.localStateSnapshot == null) {
-                        this.localStateSnapshot = new LocalState(
-                                this.localState.getIsActive(),
-                                this.localState.getIsBlue(),
-                                this.localState.getMessageCounter(),
-                                this.localState.getVectorClock()
-                        );
+        synchronized(this.localState) {
+            if(this.localState.getIsBlue()) {
+                this.localState.setIsBlue(false); // change to red
+
+                if(this.localStateSnapshot == null) {
+                    this.localStateSnapshot = new LocalState(
+                            this.localState.getIsActive(),
+                            this.localState.getIsBlue(),
+                            this.localState.getMessageCounter(),
+                            this.localState.getMessageReceiveCounter(),
+                            this.localState.getVectorClock()
+                    );
+                }
+
+                for (int neighbourId : this.nodeInfo.getNeighbors()) {
+                    this.send(neighbourId, new MarkerMessage(this.getNodeInfo().getId()));
+                }
+
+                if(markerMessage.getSourceNodeId() != -1) {
+                    this.receivedMarker.put(markerMessage.getSourceNodeId(), true);
+                    if(this.allMarkersReceived() && !this.getLocalState().getIsBlue()) {
+                        this.getLocalState().setIsBlue(true); // change back to blue
+                        this.sendSnapshotMessage(this.getNodeInfo().getId());
+                        new Thread(this::reinitializeSnapshotProcess, "Snapshot Cleanup Thread").start();
                     }
-
-                    for (int neighbourId : this.nodeInfo.getNeighbors()) {
-                        this.send(neighbourId, new MarkerMessage(this.getNodeInfo().getId()));
-                    }
-
-                    if(receivedMarker.getSourceNodeId() != -1) {
-                        this.receivedMarker.put(receivedMarker.getSourceNodeId(), true);
-                        if(this.allMarkersReceived()) {
-                            this.getLocalState().invertIsBlue(); // change back to blue
-                            this.sendSnapshotMessage(-1);
-                            this.reinitializeSnapshotProcess();
+                }
+            } else {
+                this.receivedMarker.put(markerMessage.getSourceNodeId(), true);
+                if (this.allMarkersReceived() && !this.getLocalState().getIsBlue()) {
+                    this.localState.setIsBlue(true); // change to blue
+                    if (this.getNodeInfo().getId() == Config.DEFAULT_SNAPSHOT_NODE_ID) {
+                        synchronized (this.globalState) {
+                            this.globalState.addLocalState(this.getNodeInfo().getId(), this.localStateSnapshot);
+                            this.channelStates.forEach(this.globalState::addChannelState);
                         }
-                    }
-                } else {
-                    this.receivedMarker.put(receivedMarker.getSourceNodeId(), true);
-                    if(this.allMarkersReceived()) {
-                        this.localState.invertIsBlue(); // change to blue
-                        if(this.getNodeInfo().getId() == Config.DEFAULT_SNAPSHOT_NODE_ID) {
-                            synchronized(this.globalState) {
-                                this.globalState.addLocalState(this.getNodeInfo().getId(), this.localStateSnapshot);
-                                this.channelStates.forEach(this.globalState::addChannelState);
-                            }
-                            this.recordGlobalState();
-                        } else {
-                            this.sendSnapshotMessage(-1);
-                        }
+                        this.recordGlobalState();
+                    } else {
+                        this.sendSnapshotMessage(this.getNodeInfo().getId());
+                        new Thread(this::reinitializeSnapshotProcess, "Snapshot Re-Initialization or Cleanup Thread").start();
                     }
                 }
             }
@@ -253,10 +258,12 @@ public class Node {
     }
 
     public void receiveSnapshotMessage(SnapshotMessage snapshotMessage) {
+        logger.info("Received [Snapshot]: " + snapshotMessage + "\n");
         if(this.getNodeInfo().getId() == Config.DEFAULT_SNAPSHOT_NODE_ID) {
             synchronized(this.globalState) {
                 this.globalState.addLocalState(snapshotMessage.getOriginalNodeId(), snapshotMessage.getLocalState());
                 snapshotMessage.getChannelStates().forEach(this.globalState::addChannelState);
+                this.recordGlobalState();
             }
         } else {
             this.sendSnapshotMessage(snapshotMessage.getOriginalNodeId());

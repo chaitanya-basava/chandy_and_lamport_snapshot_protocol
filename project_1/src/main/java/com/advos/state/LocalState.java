@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicIntegerArray;
 public class LocalState extends State {
     private final AtomicBoolean isActive;
     private final AtomicInteger messageCounter;
+    private final AtomicInteger messageReceiveCounter;
     private final AtomicBoolean isBlue;
 
     // virtual vector clock of the node
@@ -20,12 +21,14 @@ public class LocalState extends State {
         this.isBlue = new AtomicBoolean(true);
         this.messageCounter = new AtomicInteger(0);
         this.vectorClock = new AtomicIntegerArray(config.getN());
+        this.messageReceiveCounter = new AtomicInteger(0);
     }
 
-    public LocalState(boolean isActive, boolean isBlue, int messageCounter, List<Integer> vectorClock) {
+    public LocalState(boolean isActive, boolean isBlue, int messageCounter, int messageReceiveCounter, List<Integer> vectorClock) {
         this.isActive = new AtomicBoolean(isActive);
         this.isBlue = new AtomicBoolean(isBlue);
         this.messageCounter = new AtomicInteger(messageCounter);
+        this.messageReceiveCounter = new AtomicInteger(messageReceiveCounter);
         this.vectorClock = new AtomicIntegerArray(
                 vectorClock.stream()
                         .mapToInt(Integer::intValue)
@@ -43,6 +46,10 @@ public class LocalState extends State {
 
     public int getMessageCounter() {
         return this.messageCounter.get();
+    }
+
+    public int getMessageReceiveCounter() {
+        return this.messageReceiveCounter.get();
     }
 
     public int getVectorClockAti(int i) {
@@ -75,15 +82,15 @@ public class LocalState extends State {
         this.isActive.set(active);
     }
 
-    public void invertIsBlue() {
-        this.isBlue.set(!this.isBlue.get());
-    }
-
     public void setIsBlue(boolean isBlue) {
         this.isBlue.set(isBlue);
     }
 
     public int incrementMessageCounter() {
         return this.messageCounter.incrementAndGet();
+    }
+
+    public void incrementMessageReceiveCounter() {
+        this.messageReceiveCounter.incrementAndGet();
     }
 }
