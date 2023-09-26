@@ -63,6 +63,7 @@ public class Channel {
                 Message msg = (Message) this.in.readObject();
                 if (msg instanceof ApplicationMessage) {
                     ApplicationMessage appMsg = (ApplicationMessage) msg;
+                    if(appMsg.getMsg().isEmpty()) continue;
                     this.node.receiveApplicationMessage(appMsg);
                 } else if (msg instanceof MarkerMessage) {
                     MarkerMessage markerMsg = (MarkerMessage) msg;
@@ -71,7 +72,7 @@ public class Channel {
                     SnapshotMessage snapshotMsg = (SnapshotMessage) msg;
                     this.node.receiveSnapshotMessage(snapshotMsg);
                 } else if (msg instanceof TerminationMessage) {
-                    this.node.propagateTermination();
+                    this.node.propagateMessage(msg);
                 }
             } catch (EOFException ignored) {
                 MAPProtocol.sleep(500);

@@ -20,7 +20,7 @@ public class Node {
     private final Config config;
     private final NodeInfo nodeInfo;
     private final LocalState localState;
-    private LocalState localStateSnapshot;
+    private LocalStateSnapshot localStateSnapshot;
     private final List<ChannelState> channelStates;
     private final GlobalState globalState;
     private final Map<Integer, Channel> inChannels = new HashMap<>();
@@ -40,7 +40,11 @@ public class Node {
         new Thread(this::startServer, "Socket Server Thread").start();
         this.startClient();
 
+        logger.info("node info with id: {}\n{}", this.getNodeInfo().getId(), this);
+
         MAPProtocol.sleep(Config.INIT_DELAY);
+
+        new Thread(this::reinitializeSnapshotProcess, "Snapshot Initialization Thread").start();
     }
 
     private void startServer() {
@@ -61,64 +65,6 @@ public class Node {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private boolean checkTermination() {
-        synchronized(this.globalState) {
-            for(LocalState l: this.globalState.getLocalStates().values()) {
-                if(l.getIsActive()) return false;
-            }
-
-            return this.globalState.getChannelStates().isEmpty();
-        }
-    }
-
-    public void propagateTermination() {
-        this.getNodeInfo().getNeighbors().forEach(neighbourId -> this.send(neighbourId, new TerminationMessage(this.getNodeInfo().getId())));
-        System.exit(0);
-    }
-
-    public void reinitializeSnapshotProcess() {
-        synchronized (this) {
-            // set all in-channels to false
-            this.receivedMarker.replaceAll((i, v) -> false);
-            synchronized(this.channelStates) {
-                // clear channel states
-                this.channelStates.clear();
-            }
-            // clear global state
-            this.globalState.clear();
-            this.localStateSnapshot = null;
-        }
-
-        if(this.getNodeInfo().getId() == Config.DEFAULT_SNAPSHOT_NODE_ID) {
-            logger.info("\ninitializing '" + snapshotCount++ + "' snapshot process\n");
-            this.localState.setIsBlue(true);
-            MAPProtocol.sleep(config.getSnapshotDelay());
-            this.receiveMarkerMessage(new MarkerMessage(-1));
-        }
-    }
-
-    private void recordGlobalState() {
-        // called only on default snapshot node
-        synchronized(this.globalState) {
-            if(this.globalState.getLocalStates().size() == this.config.getN()) {
-                // save global state to global states list
-                MAPProtocol.addNodeGlobalState(this.globalState);
-                if(this.checkTermination()) this.propagateTermination();
-                else {
-                    new Thread(this::reinitializeSnapshotProcess,
-                            "Snapshot Re-Initialization Thread - Global snapshot recorded").start();
-                }
-            }
-        }
-    }
-
-    private boolean allMarkersReceived() {
-        for(boolean received: this.receivedMarker.values()) {
-            if(!received) return false;
-        }
-        return true;
     }
 
     private boolean createSocketChannel(String hostname, int port, int neighbourId) {
@@ -153,6 +99,64 @@ public class Node {
         }
 
         logger.info("Connected to " + this.outChannels.size() + " channel(s)");
+    }
+
+    private boolean checkTermination() {
+        synchronized(this.globalState) {
+            for(LocalState l: this.globalState.getLocalStates().values()) {
+                if(l.getIsActive()) return false;
+            }
+
+            return this.globalState.getChannelStates().isEmpty();
+        }
+    }
+
+    public void propagateMessage(Message msg) {
+        this.getNodeInfo().getNeighbors().forEach(neighbourId -> this.send(neighbourId, msg));
+        if(msg instanceof TerminationMessage) System.exit(0);
+    }
+
+    private void reinitializeSnapshotProcess() {
+        synchronized (this) {
+            // set all in-channels to false
+            this.receivedMarker.replaceAll((i, v) -> false);
+            synchronized(this.channelStates) {
+                // clear channel states
+                this.channelStates.clear();
+            }
+            // clear global state
+            this.globalState.clear();
+        }
+
+        if(this.getNodeInfo().getId() == Config.DEFAULT_SNAPSHOT_NODE_ID) {
+            logger.info("\ninitializing '" + snapshotCount++ + "' snapshot process\n");
+            this.localState.setIsBlue(true);
+            MAPProtocol.sleep(config.getSnapshotDelay());
+            this.receiveMarkerMessage(new MarkerMessage(-1));
+        }
+    }
+
+    private void recordGlobalState() {
+        synchronized(this.globalState) {
+            if(this.globalState.getLocalStates().size() == this.config.getN()) {
+                // save global state to global states list
+                MAPProtocol.addNodeGlobalState(this.globalState);
+                if(this.checkTermination()) {
+                    this.propagateMessage(new TerminationMessage(this.getNodeInfo().getId()));
+                }
+                else {
+                    new Thread(this::reinitializeSnapshotProcess,
+                            "Snapshot Re-Initialization Thread - Global snapshot recorded").start();
+                }
+            }
+        }
+    }
+
+    private boolean allMarkersReceived() {
+        for(boolean received: this.receivedMarker.values()) {
+            if(!received) return false;
+        }
+        return true;
     }
 
     private int getRandomNeighbor() {
@@ -193,6 +197,7 @@ public class Node {
         synchronized(this.channelStates) {
             if(snapshotMessage == null)
                 snapshotMessage = new SnapshotMessage(this.getNodeInfo().getId(), this.localStateSnapshot, this.channelStates);
+
             logger.info("Sending [snapshot]: " + snapshotMessage + " to " + this.getNodeInfo().getParentNodeId()
                     + " color: " + snapshotMessage.getLocalState().getIsBlue()
                     + " isActive: " + snapshotMessage.getLocalState().getIsActive() + "\n");
@@ -239,17 +244,16 @@ public class Node {
             if(this.localState.getIsBlue()) {
                 this.localState.setIsBlue(false); // change to red
 
-                this.localStateSnapshot = new LocalState(
+                this.localStateSnapshot = new LocalStateSnapshot(
                         this.localState.getIsActive(),
                         this.localState.getIsBlue(),
                         this.localState.getMessageCounter(),
                         this.localState.getMessageReceiveCounter(),
-                        this.localState.getVectorClock()
+                        this.localState.getVectorClock(),
+                        this.config
                 );
 
-                for (int neighbourId : this.nodeInfo.getNeighbors()) {
-                    this.send(neighbourId, new MarkerMessage(this.getNodeInfo().getId()));
-                }
+                this.propagateMessage(new MarkerMessage(this.getNodeInfo().getId()));
 
                 if(markerMessage.getSourceNodeId() != -1) {
                     this.receivedMarker.put(markerMessage.getSourceNodeId(), true);
@@ -267,8 +271,8 @@ public class Node {
                         synchronized(this.globalState) {
                             this.globalState.addLocalState(this.getNodeInfo().getId(), this.localStateSnapshot);
                             this.channelStates.forEach(this.globalState::addChannelState);
+                            this.recordGlobalState();
                         }
-                        this.recordGlobalState();
                     } else {
                         this.sendSnapshotMessage(null);
                         new Thread(this::reinitializeSnapshotProcess, "Snapshot Cleanup Thread").start();

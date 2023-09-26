@@ -8,13 +8,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 
 public class LocalState extends State {
-    private final AtomicBoolean isActive;
-    private final AtomicInteger messageCounter;
-    private final AtomicInteger messageReceiveCounter;
-    private final AtomicBoolean isBlue;
+    AtomicBoolean isActive;
+    AtomicInteger messageCounter;
+    AtomicInteger messageReceiveCounter;
+    AtomicBoolean isBlue;
 
     // virtual vector clock of the node
-    private final AtomicIntegerArray vectorClock;
+    AtomicIntegerArray vectorClock;
 
     public LocalState(boolean isActive, Config config) {
         this.isActive = new AtomicBoolean(isActive);
@@ -22,18 +22,6 @@ public class LocalState extends State {
         this.messageCounter = new AtomicInteger(0);
         this.vectorClock = new AtomicIntegerArray(config.getN());
         this.messageReceiveCounter = new AtomicInteger(0);
-    }
-
-    public LocalState(boolean isActive, boolean isBlue, int messageCounter, int messageReceiveCounter, List<Integer> vectorClock) {
-        this.isActive = new AtomicBoolean(isActive);
-        this.isBlue = new AtomicBoolean(isBlue);
-        this.messageCounter = new AtomicInteger(messageCounter);
-        this.messageReceiveCounter = new AtomicInteger(messageReceiveCounter);
-        this.vectorClock = new AtomicIntegerArray(
-                vectorClock.stream()
-                        .mapToInt(Integer::intValue)
-                        .toArray()
-        );
     }
 
     public boolean getIsActive() {

@@ -67,10 +67,10 @@ public class MAPProtocol {
 
     private void buildSpanningTree() {
         boolean[] visited = new boolean[this.config.getN()];
-        Queue<Integer> queue = new LinkedList<>();
-        queue.add(0);
-        visited[0] = true;
-        this.config.getNode(0).setParentNodeId(-1);
+        Queue<Integer> queue = new ArrayDeque<>();
+        queue.add(Config.DEFAULT_SNAPSHOT_NODE_ID);
+        visited[Config.DEFAULT_SNAPSHOT_NODE_ID] = true;
+        this.config.getNode(Config.DEFAULT_SNAPSHOT_NODE_ID).setParentNodeId(-1);
 
         while(!queue.isEmpty()) {
             int currentId = queue.poll();
@@ -97,8 +97,6 @@ public class MAPProtocol {
             MAPProtocol.validateSnapshots(this.config.getN());
         }, "Shutdown Listener"));
 
-        logger.info("node info with id: {}\n{}", this.nodeId, node);
-        new Thread(this.node::reinitializeSnapshotProcess, "Snapshot Initialization Thread").start();
         if(this.node.getLocalState().getIsActive()) {
             new Thread(this.node::sendApplicationMessages, "Application Initialization Thread").start();
         }

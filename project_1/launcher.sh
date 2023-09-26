@@ -30,8 +30,6 @@ net_id="$4"
 
 mvn -f "$project_dir" clean package
 
-#bash -c ". cleanup.sh $net_id $rsa_path"
-
 jar_path="$project_dir/target/project_1-1.0-SNAPSHOT-jar-with-dependencies.jar"
 
 scp -i "$rsa_path" "$config_file" "$net_id@dc01:$remote_proj_path/config.txt"
