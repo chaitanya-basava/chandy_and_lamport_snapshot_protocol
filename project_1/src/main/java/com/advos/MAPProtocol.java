@@ -2,6 +2,7 @@ package com.advos;
 
 import com.advos.models.Config;
 import com.advos.state.GlobalState;
+import com.advos.state.LocalState;
 import com.advos.utils.ConfigParser;
 import com.advos.utils.Node;
 import org.apache.commons.cli.*;
@@ -15,7 +16,7 @@ public class MAPProtocol {
     private final Node node;
     private final int nodeId;
     private final Config config;
-    private static final List<GlobalState> nodeGlobalStates = new ArrayList<>();
+    private static final List<GlobalState> globalStates = new ArrayList<>();
 
     private static CommandLine parseArgs(String[] args) {
         Options options = new Options();
@@ -86,7 +87,7 @@ public class MAPProtocol {
     }
 
     public static void addNodeGlobalState(GlobalState nodeGlobalState) {
-        MAPProtocol.nodeGlobalStates.add(nodeGlobalState);
+        MAPProtocol.globalStates.add(nodeGlobalState);
     }
 
     public void execute() {
@@ -94,7 +95,7 @@ public class MAPProtocol {
             logger.info("Termination condition met, terminating node " + this.node.getNodeInfo().getId() + "!!!");
             this.cleanup();
             logger.info("\n");
-            MAPProtocol.validateSnapshots(this.config.getN());
+            if(this.nodeId == Config.DEFAULT_SNAPSHOT_NODE_ID) MAPProtocol.validateSnapshots();
         }, "Shutdown Listener"));
 
         if(this.node.getLocalState().getIsActive()) {
@@ -114,8 +115,31 @@ public class MAPProtocol {
         }
     }
 
-    public synchronized static void validateSnapshots(int n) {
-        // TODO: implement snapshot consistency validation
+    public synchronized static void validateSnapshots() {
+        synchronized(MAPProtocol.class) {
+            final List<List<Integer>> inconsistentSnapshots = new ArrayList<>();
+            final int[] idx = new int[1];
+
+            MAPProtocol.globalStates.forEach(globalState -> {
+                for(int i = 0; i < globalState.getLocalStates().size(); i++) {
+                    LocalState ithProcessLocalState = globalState.getLocalStateForNode(i);
+                    for(int j = 0; j < globalState.getLocalStates().size(); j++) {
+                        if(j == i) continue;
+                        LocalState jthProcessLocalState = globalState.getLocalStateForNode(j);
+                        if(ithProcessLocalState.getVectorClockAti(i) < jthProcessLocalState.getVectorClockAti(i)) {
+                            logger.info("Snapshot [" + idx[0] + "] is not consistent at " + i + " and " + j);
+                            inconsistentSnapshots.add(Arrays.asList(idx[0], i, j));
+                            break;
+                        }
+                    }
+                }
+                idx[0]++;
+            });
+
+            if(inconsistentSnapshots.isEmpty()) {
+                logger.info("All GlobalState snapshots are consistent");
+            }
+        }
     }
 
     public void cleanup() {
