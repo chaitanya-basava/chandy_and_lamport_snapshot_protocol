@@ -3,7 +3,7 @@
 This is the implementation of project 1 for Advanced Operating System course section 001.
 
 ## Requirements
-1. java - openjdk@18.0.2
+1. java@1.8.0_341
 2. maven@3.9.4
 
 ## Steps to compile and run the project
@@ -25,3 +25,14 @@ bash launcher.sh "/Users/chaitanyabasava/Documents/advanced_os/project_1/" "/Use
 ```
 
 **NOTE:** This assumes you have done the steps to enable passwordless login to dcXX machine on your local machine and have the corresponding rsa pem file.
+
+## Steps to clean up
+You can use the cleanup script to clean up all the dangling processes (if any).
+```
+bash cleanup.sh <netid> <rsa file path>
+```
+
+**Example:**
+```
+bash cleanup.sh sxb220302 "~/.ssh/id_rsa_dc"
+```
