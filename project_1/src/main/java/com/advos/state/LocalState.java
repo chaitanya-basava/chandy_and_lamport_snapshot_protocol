@@ -81,4 +81,12 @@ public class LocalState extends State {
     public void incrementMessageReceiveCounter() {
         this.messageReceiveCounter.incrementAndGet();
     }
+
+    @Override
+    public String toString() {
+        return this.getVectorClock().toString().replace("[", "")
+                .replace("]", "")
+                .replace(" ", "")
+                .replace(",", " ");
+    }
 }

@@ -9,12 +9,15 @@ import org.apache.commons.cli.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class MAPProtocol {
     private static final Logger logger = LoggerFactory.getLogger(MAPProtocol.class);
     private final Node node;
     private final int nodeId;
+    private static String configFile;
     private final Config config;
     private static final List<GlobalState> globalStates = new ArrayList<>();
 
@@ -53,11 +56,11 @@ public class MAPProtocol {
         boolean verbose = cmd.hasOption("v");
         boolean isActive = cmd.hasOption("a");
         this.nodeId = Integer.parseInt(cmd.getOptionValue("nodeId"));
-        String configFile = cmd.getOptionValue("configFile");
+        MAPProtocol.configFile = cmd.getOptionValue("configFile");
 
         ConfigParser configParser = new ConfigParser(verbose);
         try {
-            configParser.parseConfig(configFile);
+            configParser.parseConfig(MAPProtocol.configFile);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -87,7 +90,11 @@ public class MAPProtocol {
     }
 
     public static void addNodeGlobalState(GlobalState nodeGlobalState) {
-        MAPProtocol.globalStates.add(nodeGlobalState);
+        GlobalState newGlobalState = new GlobalState(
+                new HashMap<>(nodeGlobalState.getLocalStates()),
+                new ArrayList<>(nodeGlobalState.getChannelStates())
+        );
+        MAPProtocol.globalStates.add(newGlobalState);
     }
 
     public void execute() {
@@ -95,7 +102,10 @@ public class MAPProtocol {
             logger.info("Termination condition met, terminating node " + this.node.getNodeInfo().getId() + "!!!");
             this.cleanup();
             logger.info("\n");
-            if(this.nodeId == Config.DEFAULT_SNAPSHOT_NODE_ID) MAPProtocol.validateSnapshots();
+            if(this.nodeId == Config.DEFAULT_SNAPSHOT_NODE_ID) {
+                MAPProtocol.validateSnapshots();
+                MAPProtocol.writeToFile();
+            }
         }, "Shutdown Listener"));
 
         if(this.node.getLocalState().getIsActive()) {
@@ -115,7 +125,7 @@ public class MAPProtocol {
         }
     }
 
-    public synchronized static void validateSnapshots() {
+    private synchronized static void validateSnapshots() {
         synchronized(MAPProtocol.class) {
             final List<List<Integer>> inconsistentSnapshots = new ArrayList<>();
             final int[] idx = new int[1];
@@ -139,6 +149,37 @@ public class MAPProtocol {
             if(inconsistentSnapshots.isEmpty()) {
                 logger.info("All GlobalState snapshots are consistent");
             }
+        }
+    }
+
+    private synchronized static void writeToFile() {
+        synchronized(MAPProtocol.class) {
+            Map<Integer, FileWriter> fileWriters = new HashMap<>();
+            MAPProtocol.globalStates.forEach(globalState -> globalState.getLocalStates().forEach((nodeId, localState) -> {
+                try {
+                    FileWriter writer;
+                    if(fileWriters.containsKey(nodeId)) writer = fileWriters.get(nodeId);
+                    else {
+                        writer = new FileWriter(
+                                MAPProtocol.configFile.replace(".txt", "")
+                                        + "-" + nodeId + ".out"
+                        );
+                        fileWriters.put(nodeId, writer);
+                    }
+                    logger.info(nodeId + " " + localState.toString());
+                    writer.write(localState + System.lineSeparator());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }));
+
+            fileWriters.forEach((nodeId, writer) -> {
+                try {
+                    writer.close();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
         }
     }
 

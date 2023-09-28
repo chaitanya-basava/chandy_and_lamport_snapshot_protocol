@@ -14,6 +14,11 @@ public class GlobalState extends State {
         this.channelStates = new ArrayList<>();
     }
 
+    public GlobalState(Map<Integer, LocalState> localStates, List<ChannelState> channelStates) {
+        this.localStates = localStates;
+        this.channelStates = channelStates;
+    }
+
     public Map<Integer, LocalState> getLocalStates() {
         return this.localStates;
     }
