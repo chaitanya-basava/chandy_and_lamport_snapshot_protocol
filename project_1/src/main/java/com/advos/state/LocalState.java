@@ -6,12 +6,14 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class LocalState extends State {
     AtomicBoolean isActive;
     AtomicInteger messageCounter;
     AtomicInteger messageReceiveCounter;
     AtomicBoolean isBlue;
+    AtomicLong lastBlueTimestamp;
 
     // virtual vector clock of the node
     AtomicIntegerArray vectorClock;
@@ -22,6 +24,25 @@ public class LocalState extends State {
         this.messageCounter = new AtomicInteger(0);
         this.vectorClock = new AtomicIntegerArray(config.getN());
         this.messageReceiveCounter = new AtomicInteger(0);
+        this.lastBlueTimestamp = new AtomicLong(0);
+    }
+
+    public LocalState(boolean isActive, boolean isBlue, int messageCounter, int messageReceiveCounter,
+                      long lastBlueTimestamp, int[] vectorClock) {
+        this.isActive = new AtomicBoolean(isActive);
+        this.isBlue = new AtomicBoolean(isBlue);
+        this.messageCounter = new AtomicInteger(messageCounter);
+        this.messageReceiveCounter = new AtomicInteger(messageReceiveCounter);
+        this.lastBlueTimestamp = new AtomicLong(lastBlueTimestamp);
+        this.vectorClock = new AtomicIntegerArray(vectorClock);
+    }
+
+    public long getLastBlueTimestamp() {
+        return this.lastBlueTimestamp.get();
+    }
+
+    public void setLastBlueTimestamp(long timestamp) {
+        this.lastBlueTimestamp.set(timestamp);
     }
 
     public boolean getIsActive() {
@@ -84,9 +105,27 @@ public class LocalState extends State {
 
     @Override
     public String toString() {
-        return this.getVectorClock().toString().replace("[", "")
-                .replace("]", "")
-                .replace(" ", "")
-                .replace(",", " ");
+        return "isActive;" + this.getIsActive() + "####isBlue;" + this.getIsBlue() +
+                "####messageCounter;" + this.getMessageCounter() + "####messageReceiveCounter;" +
+                this.getMessageReceiveCounter() + "####lastBlueTimestamp;" + this.getLastBlueTimestamp() +
+                "####vectorClock;" + this.getVectorClock().toString().replace("[", "").replace("]", "").replace(", ", ",");
+    }
+
+    public static LocalState deserialize(String serializedState) {
+        String[] serializedStateSplit = serializedState.split("####");
+
+        boolean isActive = Boolean.parseBoolean(serializedStateSplit[0].split(";")[1]);
+        boolean isBlue = Boolean.parseBoolean(serializedStateSplit[1].split(";")[1]);
+        int messageCounter = Integer.parseInt(serializedStateSplit[2].split(";")[1]);
+        int messageReceiveCounter = Integer.parseInt(serializedStateSplit[3].split(";")[1]);
+        long lastBlueTimestamp = Long.parseLong(serializedStateSplit[4].split(";")[1]);
+
+        String[] vectorClockSplit = serializedStateSplit[5].split(";")[1].split(",");
+        int[] vectorClock = new int[vectorClockSplit.length];
+        for (int i = 0; i < vectorClockSplit.length; i++) {
+            vectorClock[i] = Integer.parseInt(vectorClockSplit[i]);
+        }
+
+        return new LocalState(isActive, isBlue, messageCounter, messageReceiveCounter, lastBlueTimestamp, vectorClock);
     }
 }

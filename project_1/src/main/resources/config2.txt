@@ -1,14 +1,14 @@
 9 20 30 100 300 500
 
-0 localhost 30001
-1 localhost 30002
-2 localhost 30003
-3 localhost 30004
-4 localhost 30005
-5 localhost 30006
-6 localhost 30007
-7 localhost 30008
-8 localhost 30009
+0 dc10 30001
+1 dc12 30002
+2 dc13 30003
+3 dc14 30004
+4 dc15 30005
+5 dc16 30006
+6 dc17 30007
+7 dc18 30008
+8 dc19 30009
 
 1 2 7 # neighbours of node 0
 0 3 # neighbours of node 1

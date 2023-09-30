@@ -166,7 +166,7 @@ public class MAPProtocol {
                         );
                         fileWriters.put(nodeId, writer);
                     }
-                    logger.info(nodeId + " " + localState.toString());
+//                    logger.info(nodeId + " - " + localState.toString());
                     writer.write(localState + System.lineSeparator());
                 } catch (IOException e) {
                     throw new RuntimeException(e);

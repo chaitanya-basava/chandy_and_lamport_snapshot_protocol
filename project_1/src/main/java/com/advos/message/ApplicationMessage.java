@@ -1,5 +1,6 @@
 package com.advos.message;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class ApplicationMessage extends Message {
@@ -20,6 +21,24 @@ public class ApplicationMessage extends Message {
 
     @Override
     public String toString() {
-        return super.toString() + " [Piggybacked Clock] " + this.getPiggybackedClock().toString() + " ";
+        return "[ApplicationMessage]----msg:" + this.getMsg() +
+                "----sourceNodeId:" + this.getSourceNodeId() +
+                "----piggybackedClock:" + this.getPiggybackedClock().toString()
+                    .replace("[", "").replace("]", "").replace(", ", ",") + "----";
+    }
+
+    public static ApplicationMessage deserialize(String serializedApplicationMessage) {
+        String[] applicationMessage = serializedApplicationMessage.split("----");
+
+        String[] strArray = applicationMessage[3].split(":")[1].split(",");
+
+        List<Integer> intArray = new ArrayList<>(strArray.length);
+        for(String s : strArray) { intArray.add(Integer.parseInt(s)); }
+
+        return new ApplicationMessage(
+                applicationMessage[1].split(":")[1],
+                new ArrayList<>(intArray),
+                Integer.parseInt(applicationMessage[2].split(":")[1])
+        );
     }
 }

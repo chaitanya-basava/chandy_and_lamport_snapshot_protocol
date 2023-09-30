@@ -2,6 +2,7 @@ package com.advos.utils;
 
 import com.advos.MAPProtocol;
 import com.advos.message.*;
+import com.advos.models.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,8 +17,8 @@ public class Channel {
     }
 
     private final Socket socket;
-    private final ObjectInputStream in;
-    private final ObjectOutputStream out;
+    private final DataInputStream in;
+    private final DataOutputStream out;
     private final Node node;
     private int neighbourId;
 
@@ -26,8 +27,8 @@ public class Channel {
         this.neighbourId = neighbourId;
         try {
             this.socket = socket;
-            this.out = new ObjectOutputStream(socket.getOutputStream());
-            this.in = new ObjectInputStream(new BufferedInputStream(socket.getInputStream()));
+            this.out = new DataOutputStream(socket.getOutputStream());
+            this.in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
         } catch (IOException e) {
             logger.error(e.getMessage());
             throw new RuntimeException(e);
@@ -39,11 +40,15 @@ public class Channel {
     }
 
     public void receiveUrgentMessage() {
+        StringBuilder msg = new StringBuilder();
+        String line;
         while(true) {
             try {
-                Message msg = (Message) this.in.readObject();
-                if (msg instanceof ApplicationMessage) {
-                    this.neighbourId = msg.getSourceNodeId();
+                line = this.in.readUTF();
+                msg.append(line);
+
+                if(msg.toString().endsWith(Config.MESSAGE_DELIMITER) && (msg.toString().contains("[ApplicationMessage]"))) {
+                    this.neighbourId = ApplicationMessage.deserialize(msg.toString()).getSourceNodeId();
                     break;
                 }
             } catch (EOFException ignored) {
@@ -51,43 +56,45 @@ public class Channel {
             }
             catch (IOException e) {
                 logger.error(e.getMessage());
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
             }
         }
     }
 
     public void receiveMessage() {
+        StringBuilder msg = new StringBuilder();
+        String line;
         while (true) {
             try {
-                Message msg = (Message) this.in.readObject();
-                if (msg instanceof ApplicationMessage) {
-                    ApplicationMessage appMsg = (ApplicationMessage) msg;
-                    if(appMsg.getMsg().isEmpty()) continue;
-                    this.node.receiveApplicationMessage(appMsg);
-                } else if (msg instanceof MarkerMessage) {
-                    MarkerMessage markerMsg = (MarkerMessage) msg;
-                    this.node.receiveMarkerMessage(markerMsg);
-                } else if (msg instanceof SnapshotMessage) {
-                    SnapshotMessage snapshotMsg = (SnapshotMessage) msg;
-                    this.node.receiveSnapshotMessage(snapshotMsg);
-                } else if (msg instanceof TerminationMessage) {
-                    this.node.propagateMessage(msg);
+                line = this.in.readUTF();
+                msg.append(line);
+
+                if(msg.toString().endsWith(Config.MESSAGE_DELIMITER)) {
+                    if (msg.toString().contains("[ApplicationMessage]")) {
+                        ApplicationMessage appMsg = ApplicationMessage.deserialize(msg.toString());
+                        if(appMsg.getMsg().isEmpty()) continue;
+                        this.node.receiveApplicationMessage(appMsg);
+                    } else if (msg.toString().contains("[MarkerMessage]")) {
+                        MarkerMessage markerMsg = MarkerMessage.deserialize(msg.toString());
+                        this.node.receiveMarkerMessage(markerMsg);
+                    } else if (msg.toString().contains("[SnapshotMessage]")) {
+                        SnapshotMessage snapshotMsg = SnapshotMessage.deserialize(msg.toString());
+                        this.node.receiveSnapshotMessage(snapshotMsg);
+                    } else if (msg.toString().contains("[TerminationMessage]")) {
+                        this.node.propagateMessage(TerminationMessage.deserialize(msg.toString()));
+                    }
+
+                    msg = new StringBuilder();
                 }
-            } catch (EOFException ignored) {
+            } catch (IOException | ClassCastException e) {
+                logger.error(e.getMessage());
                 MAPProtocol.sleep(500);
-            }
-            catch (IOException e) {
-                break;
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
             }
         }
     }
 
     public void sendMessage(Message message) {
         try{
-            this.out.writeObject(message);
+            this.out.writeUTF(message.toString() + Config.MESSAGE_DELIMITER);
             this.out.flush();
         } catch (IOException e) {
             logger.error("Error while sending to " + this.neighbourId + ": " + e.getMessage());

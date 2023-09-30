@@ -14,6 +14,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
 import java.util.ArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class Node {
     private static final Logger logger = LoggerFactory.getLogger(Node.class);
@@ -42,6 +45,15 @@ public class Node {
 
         logger.info("node info with id: {}\n{}", this.getNodeInfo().getId(), this);
 
+        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+
+        executor.scheduleAtFixedRate(() -> {
+            if(this.localState.getLastBlueTimestamp() + 5000 < System.currentTimeMillis()) {
+                this.localState.setIsBlue(true);
+                new Thread(this::reinitializeSnapshotProcess, "Stale Snapshot Initialization Thread").start();
+            }
+        }, Config.INIT_DELAY / 1000 + 5, 5, TimeUnit.SECONDS);
+
         MAPProtocol.sleep(Config.INIT_DELAY);
 
         new Thread(this::reinitializeSnapshotProcess, "Snapshot Initialization Thread").start();
@@ -58,7 +70,8 @@ public class Node {
                 this.receivedMarker.put(channel.getNeighbourId(), false);
                 this.inChannels.put(channel.getNeighbourId(), channel);
 
-                String socketInfo = channel.getSocket().getInetAddress().getCanonicalHostName() + ":" + channel.getSocket().getPort() + " [" + channel.getNeighbourId() + "]";
+                String socketInfo = "[Node " + channel.getNeighbourId() + "]" +
+                        " for Node " + this.nodeInfo.getId();
                 new Thread(channel::receiveMessage, socketInfo + " Message Listener Thread").start();
                 logger.info("Received connection from " + socketInfo);
             }
@@ -71,7 +84,7 @@ public class Node {
         try {
             Channel channel = new Channel(hostname, port, this, neighbourId);
             this.outChannels.put(neighbourId, channel);
-            channel.sendMessage(new ApplicationMessage("", this.localState.getVectorClock(), this.nodeInfo.getId()));
+            channel.sendMessage(new ApplicationMessage("dummy", this.localState.getVectorClock(), this.nodeInfo.getId()));
             logger.info("Connected to " + channel.getSocket().getInetAddress().getHostAddress() + ":" + channel.getSocket().getPort());
         } catch (IOException e) {
             logger.error("Couldn't connect to " + hostname + ":" + port);
@@ -106,6 +119,8 @@ public class Node {
             for(LocalState l: this.globalState.getLocalStates().values()) {
                 if(l.getIsActive()) return false;
             }
+
+            logger.info("Snapshot num: " + this.snapshotCount + " - count: " + this.globalState.getChannelStates().size());
 
             return this.globalState.getChannelStates().isEmpty();
         }
@@ -198,9 +213,7 @@ public class Node {
             if(snapshotMessage == null)
                 snapshotMessage = new SnapshotMessage(this.getNodeInfo().getId(), this.localStateSnapshot, this.channelStates);
 
-            logger.info("Sending [snapshot]: " + snapshotMessage + " to " + this.getNodeInfo().getParentNodeId()
-                    + " color: " + snapshotMessage.getLocalState().getIsBlue()
-                    + " isActive: " + snapshotMessage.getLocalState().getIsActive() + "\n");
+            logger.info("Sending [snapshot]: " + snapshotMessage  + " to " + this.getNodeInfo().getParentNodeId() + "\n");
             this.send(this.getNodeInfo().getParentNodeId(), snapshotMessage);
         }
     }
@@ -213,14 +226,13 @@ public class Node {
             this.localState.incrementVectorClockAti(this.nodeInfo.getId());
             this.localState.incrementMessageReceiveCounter();
 
-            logger.info("Received [Application" +
-                    this.localState.getMessageReceiveCounter() + "]: " + msg +
-                    " [Vector Clock] " + this.localState.getVectorClock().toString() + "\n");
+            logger.info("Received [Application " +
+                    this.localState.getMessageReceiveCounter() + "]: " + msg + "\n");
 
             // record channel state if marker message already received by this node
             if(!this.localState.getIsBlue() && Boolean.TRUE.equals(!this.receivedMarker.get(msg.getSourceNodeId()))) {
                 synchronized(this.channelStates) {
-                    this.channelStates.add(new ChannelState(msg.getSourceNodeId(), this.getNodeInfo().getId(), msg));
+                    this.channelStates.add(new ChannelState(msg.getSourceNodeId(), this.getNodeInfo().getId(), msg.getMsg()));
                 }
             }
 
@@ -243,6 +255,7 @@ public class Node {
             logger.info("Received [Marker]: " + markerMessage + " isBlue: " + this.getLocalState().getIsBlue() + "\n");
             if(this.localState.getIsBlue()) {
                 this.localState.setIsBlue(false); // change to red
+                this.localState.setLastBlueTimestamp(System.currentTimeMillis());
 
                 this.localStateSnapshot = new LocalStateSnapshot(
                         this.localState.getIsActive(),
@@ -283,7 +296,8 @@ public class Node {
     }
 
     public void receiveSnapshotMessage(SnapshotMessage snapshotMessage) {
-        logger.info("Received [Snapshot]: " + snapshotMessage + " isActive: " + snapshotMessage.getLocalState().getIsActive() + "\n");
+        if(snapshotMessage.isExpired()) return;
+        logger.info("Received [Snapshot]: " + snapshotMessage + "\n");
         if(this.getNodeInfo().getId() == Config.DEFAULT_SNAPSHOT_NODE_ID) {
             synchronized(this.globalState) {
                 this.globalState.addLocalState(snapshotMessage.getSourceNodeId(), snapshotMessage.getLocalState());

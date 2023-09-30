@@ -95,9 +95,19 @@ public class ExecuteJar {
         logger.info(Arrays.toString(cmd));
 
         try {
-            Runtime.getRuntime().exec(cmd);
+            Process process = Runtime.getRuntime().exec(cmd);
+
+            int exitCode = process.waitFor();
+
+            if (exitCode == 0) {
+                logger.info("SSH command executed successfully.");
+            } else {
+                logger.error("SSH command failed with exit code: " + exitCode);
+            }
         } catch (IOException e) {
             logger.error(e.getMessage());
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
     
