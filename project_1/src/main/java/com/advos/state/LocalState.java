@@ -103,6 +103,13 @@ public class LocalState extends State {
         this.messageReceiveCounter.incrementAndGet();
     }
 
+    public String getDelimitedVectorString(String delimiter) {
+        return this.getVectorClock().toString().replace("[", "")
+                .replace("]", "")
+                .replace(" ", "")
+                .replace(",", delimiter);
+    }
+
     @Override
     public String toString() {
         return "isActive;" + this.getIsActive() + "####isBlue;" + this.getIsBlue() +

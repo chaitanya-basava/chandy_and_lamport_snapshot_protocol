@@ -147,8 +147,7 @@ public class MAPProtocol {
                         );
                         fileWriters.put(nodeId, writer);
                     }
-//                    logger.info(nodeId + " - " + localState.toString());
-                    writer.write(localState + System.lineSeparator());
+                    writer.write(localState.getDelimitedVectorString(" ") + System.lineSeparator());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }

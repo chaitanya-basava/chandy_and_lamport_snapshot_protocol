@@ -28,6 +28,8 @@ config_file="$2"
 remote_proj_path="$3"
 net_id="$4"
 
+ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "$rsa_path" "$net_id@dc01" "rm -rf $remote_proj_path && mkdir $remote_proj_path"
+
 mvn -f "$project_dir" clean package
 
 jar_path="$project_dir/target/project_1-1.0-SNAPSHOT-jar-with-dependencies.jar"
