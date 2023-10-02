@@ -18,7 +18,6 @@ public class MAPProtocol {
     private final Node node;
     private final int nodeId;
     private static String configFile;
-    private final Config config;
     private static final List<GlobalState> globalStates = new ArrayList<>();
 
     private static CommandLine parseArgs(String[] args) {
@@ -64,29 +63,8 @@ public class MAPProtocol {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        this.config = configParser.getConfig();
-        buildSpanningTree();
+        Config config = configParser.getConfig();
         this.node = new Node(config, config.getNode(this.nodeId), isActive);
-    }
-
-    private void buildSpanningTree() {
-        boolean[] visited = new boolean[this.config.getN()];
-        Queue<Integer> queue = new ArrayDeque<>();
-        queue.add(Config.DEFAULT_SNAPSHOT_NODE_ID);
-        visited[Config.DEFAULT_SNAPSHOT_NODE_ID] = true;
-        this.config.getNode(Config.DEFAULT_SNAPSHOT_NODE_ID).setParentNodeId(-1);
-
-        while(!queue.isEmpty()) {
-            int currentId = queue.poll();
-            List<Integer> neighbours = this.config.getNode(currentId).getNeighbors();
-            for(Integer neighbourId : neighbours) {
-                if(!visited[neighbourId]) {
-                    visited[neighbourId] = true;
-                    queue.add(neighbourId);
-                    this.config.getNode(neighbourId).setParentNodeId(currentId);
-                }
-            }
-        }
     }
 
     public static void addNodeGlobalState(GlobalState nodeGlobalState) {
@@ -147,7 +125,10 @@ public class MAPProtocol {
             });
 
             if(inconsistentSnapshots.isEmpty()) {
-                logger.info("All GlobalState snapshots are consistent");
+                logger.info("All the " + MAPProtocol.globalStates.size() + " GlobalState snapshots are consistent");
+            } else {
+                logger.error("There are " + inconsistentSnapshots.size() + " inconsistent states, out of the " +
+                        MAPProtocol.globalStates.size() + " GlobalState snapshots");
             }
         }
     }

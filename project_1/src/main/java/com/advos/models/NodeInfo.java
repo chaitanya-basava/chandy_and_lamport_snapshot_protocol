@@ -9,7 +9,7 @@ public class NodeInfo {
     private final int port;
     private List<Integer> neighbors = new ArrayList<>();
     private List<NodeInfo> neighborNodesInfo = new ArrayList<>();
-    private int parentNodeId;
+    private int parentNodeId = -1;
 
     public NodeInfo(int id, String host, int port) {
         this.id = id;

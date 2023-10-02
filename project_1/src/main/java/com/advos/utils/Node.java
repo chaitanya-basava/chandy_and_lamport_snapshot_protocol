@@ -105,12 +105,6 @@ public class Node {
             }
         }
 
-        // create a channel with parent node, if a channel doesn't exist [for sending snapshot messages]
-        int parentId = this.getNodeInfo().getParentNodeId();
-        while(parentId != -1 && !this.outChannels.containsKey(parentId)) {
-            if(this.createSocketChannel(config.getNode(parentId).getHost(), config.getNode(parentId).getPort(), parentId)) break;
-        }
-
         logger.info("Connected to " + this.outChannels.size() + " channel(s)");
     }
 
@@ -256,6 +250,17 @@ public class Node {
             if(this.localState.getIsBlue()) {
                 this.localState.setIsBlue(false); // change to red
                 this.localState.setLastBlueTimestamp(System.currentTimeMillis());
+
+                // building spanning tree (setting the parent node) upon receiving first marker msg
+                if(this.getNodeInfo().getId() != 0 && this.getNodeInfo().getParentNodeId() == -1) {
+                    // create a channel with parent node, if a channel doesn't exist [for sending snapshot messages]
+                    int parentId = markerMessage.getSourceNodeId();
+                    while(parentId != -1 && !this.outChannels.containsKey(parentId)) {
+                        if(this.createSocketChannel(config.getNode(parentId).getHost(), config.getNode(parentId).getPort(), parentId)) break;
+                    }
+                    this.getNodeInfo().setParentNodeId(parentId);
+                    logger.info("setting parent of [" + this.getNodeInfo().getId() + "] as [" + this.getNodeInfo().getParentNodeId() + "]");
+                }
 
                 this.localStateSnapshot = new LocalStateSnapshot(
                         this.localState.getIsActive(),
