@@ -30,6 +30,7 @@ public class Node {
     private final Map<Integer, Channel> outChannels = new HashMap<>();
     private final Map<Integer, Boolean> receivedMarker = new HashMap<>();
     private int snapshotCount = 1;
+    private static final Random random = new Random();
 
     public Node(Config config, NodeInfo nodeInfo, boolean isActive) {
         this.config = config;
@@ -197,7 +198,8 @@ public class Node {
                 logger.info("Sent: " + message + "\n");
             }
 
-            MAPProtocol.sleep(config.getMinSendDelay());
+            // adding random delay, as we get minSendDelay from config file
+            MAPProtocol.sleep(config.getMinSendDelay() + random.nextInt(501));
         }
         this.getLocalState().setIsActive(false);
     }

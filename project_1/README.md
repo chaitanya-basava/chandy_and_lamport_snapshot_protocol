@@ -24,6 +24,13 @@ bash launcher.sh <project_path> <path to config file on local> <project director
 bash launcher.sh "/Users/chaitanyabasava/Documents/advanced_os/project_1/" "/Users/chaitanyabasava/Documents/advanced_os/project_1/src/main/resources/config.txt" "/home/012/s/sx/sxb220302/adv_os_proj_1" sxb220302 "~/.ssh/id_rsa_dc"
 ```
 
+we can also pass the jar file path as `<project_path>` in case the jar has already been built.
+
+**Example:**
+```
+bash launcher.sh "/Users/chaitanyabasava/Documents/advanced_os/project_1/target/project_1-1.0-SNAPSHOT-jar-with-dependencies.jar" "/Users/chaitanyabasava/Documents/advanced_os/project_1/src/main/resources/config2.txt" "/home/012/s/sx/sxb220302/adv_os_proj_1" sxb220302 "~/.ssh/id_rsa_dc"
+```
+
 **NOTE:** This assumes you have done the steps to enable passwordless login to dcXX machine on your local machine and have the corresponding rsa pem file.
 
 ## Steps to clean up
@@ -36,3 +43,7 @@ bash cleanup.sh <netid> <rsa file path>
 ```
 bash cleanup.sh sxb220302 "~/.ssh/id_rsa_dc"
 ```
+
+## executable jar file
+The latest version of the built jar file has been uploaded to google drive 
+([link](https://drive.google.com/file/d/1bVGNm3BcNAS-o5q9LEdLL7hJzTh1GkvA/view?usp=sharing)).
