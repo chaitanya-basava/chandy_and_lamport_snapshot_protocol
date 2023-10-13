@@ -253,7 +253,7 @@ public class Node {
                 this.localState.setIsBlue(false); // change to red
                 this.localState.setLastBlueTimestamp(System.currentTimeMillis());
 
-                // building spanning tree (setting the parent node) upon receiving first marker msg
+                // building spanning tree (setting the parent node) upon receiving the very first marker msg
                 if(this.getNodeInfo().getId() != 0 && this.getNodeInfo().getParentNodeId() == -1) {
                     // create a channel with parent node, if a channel doesn't exist [for sending snapshot messages]
                     int parentId = markerMessage.getSourceNodeId();

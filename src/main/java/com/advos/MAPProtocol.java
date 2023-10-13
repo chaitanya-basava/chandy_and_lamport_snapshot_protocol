@@ -75,17 +75,22 @@ public class MAPProtocol {
         MAPProtocol.globalStates.add(newGlobalState);
     }
 
+    // initialize the MAPProtocol
     public void execute() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             logger.info("Termination condition met, terminating node " + this.node.getNodeInfo().getId() + "!!!");
             this.cleanup();
             logger.info("\n");
+
+            // the default_snapshot_node will validate and save the results of the Snapshot protocol
             if(this.nodeId == Config.DEFAULT_SNAPSHOT_NODE_ID) {
                 MAPProtocol.validateSnapshots();
                 MAPProtocol.writeToFile();
             }
         }, "Shutdown Listener"));
 
+        // only active node will start sending application messages to begin MAP protocol.
+        // at least 1 node will be active at the start
         if(this.node.getLocalState().getIsActive()) {
             new Thread(this.node::sendApplicationMessages, "Application Initialization Thread").start();
         }

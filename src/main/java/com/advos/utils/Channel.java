@@ -87,7 +87,6 @@ public class Channel {
                 }
             } catch (IOException | ClassCastException e) {
                 if(e.getMessage().equals("Stream closed") || e.getMessage().equals("Socket closed")) break;
-                e.printStackTrace();
                 logger.error(e.getMessage());
                 MAPProtocol.sleep(500);
             }
