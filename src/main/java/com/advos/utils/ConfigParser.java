@@ -24,7 +24,7 @@ public class ConfigParser {
     public void parseConfig(String fileName) throws Exception {
         String line;
         int lineCount = 0;
-        Map<String, Integer> hostPortMap = new HashMap<>();
+        Map<String, List<Integer>> hostPortMap = new HashMap<>();
 
         try(BufferedReader br = new BufferedReader(new FileReader(fileName))) {
             while((line = br.readLine()) != null) {
@@ -87,7 +87,7 @@ public class ConfigParser {
                         if(this.config.checkNode(nodeID)) throw new Exception("node " + nodeID + " already added");
                         if(
                                 hostPortMap.containsKey(hostName) &&
-                                        hostPortMap.get(hostName) == listenPort
+                                        hostPortMap.get(hostName).contains(listenPort)
                         ) throw new Exception("host: " + hostName + " and port: " + listenPort + " already taken");
                     } catch (Exception e) {
                         if(this.verbose) logger.error(e.getMessage());
@@ -95,7 +95,12 @@ public class ConfigParser {
                     }
 
                     this.config.setNode(nodeID, new NodeInfo(nodeID, hostName, listenPort));
-                    hostPortMap.put(hostName, listenPort);
+                    if(hostPortMap.containsKey(hostName)) hostPortMap.get(hostName).add(listenPort);
+                    else {
+                        List<Integer> temp = new ArrayList<>();
+                        temp.add(listenPort);
+                        hostPortMap.put(hostName, temp);
+                    }
 
                 } else if (this.config != null && lineCount <= 2 * this.config.getN()) {
                     // last n valid lines parsing logic (n+1...2n)
