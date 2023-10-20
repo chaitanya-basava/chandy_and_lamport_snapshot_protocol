@@ -108,7 +108,7 @@ public class MAPProtocol {
         }
     }
 
-    private synchronized static void validateSnapshots() {
+    private static synchronized void validateSnapshots() {
         synchronized(MAPProtocol.class) {
             final List<List<Integer>> inconsistentSnapshots = new ArrayList<>();
             final int[] idx = new int[1];
@@ -138,7 +138,7 @@ public class MAPProtocol {
         }
     }
 
-    private synchronized static void writeToFile() {
+    private static synchronized void writeToFile() {
         synchronized(MAPProtocol.class) {
             Map<Integer, FileWriter> fileWriters = new HashMap<>();
             MAPProtocol.globalStates.forEach(globalState -> globalState.getLocalStates().forEach((nodeId, localState) -> {
