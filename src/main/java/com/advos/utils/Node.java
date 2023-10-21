@@ -53,7 +53,7 @@ public class Node {
                 this.localState.setIsBlue(true);
                 new Thread(this::reinitializeSnapshotProcess, "Stale Snapshot Initialization Thread").start();
             }
-        }, Config.INIT_DELAY / 1000 + 5, 5, TimeUnit.SECONDS);
+        }, (Config.INIT_DELAY / 1000) + 5L, 5, TimeUnit.SECONDS);
 
         MAPProtocol.sleep(Config.INIT_DELAY);
 
@@ -238,7 +238,6 @@ public class Node {
                         this::sendApplicationMessages, "Application messaging thread - " + msg.getSourceNodeId()
                 ).start();
             }
-//            else if(this.localState.getMessageCounter() >= this.config.getMaxNumber()) this.localState.setIsActive(false);
         }
     }
 

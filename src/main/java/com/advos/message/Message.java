@@ -2,7 +2,7 @@ package com.advos.message;
 
 import java.io.Serializable;
 
-abstract public class Message implements Serializable {
+public abstract class Message implements Serializable {
     private final String msg;
     private final int sourceNodeId;
 
