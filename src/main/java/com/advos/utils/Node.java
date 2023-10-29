@@ -241,6 +241,23 @@ public class Node {
         }
     }
 
+    private void propagateApplicationMessage() {
+        synchronized(this.localState) {
+            this.getNodeInfo().getNeighbors().forEach(
+                    neighbourId -> {
+                        if (!this.localState.getIsActive() || this.localState.getMessageCounter() >= this.config.getMaxNumber())
+                            return;
+                        int msgNumber = this.localState.incrementMessageCounter();
+                        this.localState.incrementVectorClockAti(this.nodeInfo.getId());
+                        Message message = new ApplicationMessage("Message " + msgNumber +
+                                " from Node " + this.nodeInfo.getId() + " to Node " + neighbourId,
+                                this.localState.getVectorClock(), this.getNodeInfo().getId());
+                        this.send(neighbourId, message);
+                    }
+            );
+        }
+    }
+
     public void receiveMarkerMessage(MarkerMessage markerMessage) {
         while(this.receivedMarker.size() < this.nodeInfo.getNeighbors().size()) {
             MAPProtocol.sleep(Config.RETRY_CLIENT_CONNECTION_DELAY);
@@ -272,6 +289,7 @@ public class Node {
                         this.config
                 );
 
+                // this.propagateApplicationMessage(); // this line breaks consistency.
                 this.propagateMessage(new MarkerMessage(this.getNodeInfo().getId()));
 
                 if(markerMessage.getSourceNodeId() != -1) {

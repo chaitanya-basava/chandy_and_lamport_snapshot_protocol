@@ -12,6 +12,8 @@ import org.slf4j.LoggerFactory;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MAPProtocol {
     private static final Logger logger = LoggerFactory.getLogger(MAPProtocol.class);
@@ -113,7 +115,11 @@ public class MAPProtocol {
             final List<List<Integer>> inconsistentSnapshots = new ArrayList<>();
             final int[] idx = new int[1];
 
+            AtomicInteger count = new AtomicInteger();
+            AtomicBoolean flag = new AtomicBoolean(false);
+
             MAPProtocol.globalStates.forEach(globalState -> {
+                flag.set(false);
                 for(int i = 0; i < globalState.getLocalStates().size(); i++) {
                     LocalState ithProcessLocalState = globalState.getLocalStateForNode(i);
                     for(int j = 0; j < globalState.getLocalStates().size(); j++) {
@@ -122,17 +128,19 @@ public class MAPProtocol {
                         if(ithProcessLocalState.getVectorClockAti(i) < jthProcessLocalState.getVectorClockAti(i)) {
                             logger.info("Snapshot [" + idx[0] + "] is not consistent at " + i + " and " + j);
                             inconsistentSnapshots.add(Arrays.asList(idx[0], i, j));
+                            flag.set(true);
                             break;
                         }
                     }
                 }
                 idx[0]++;
+                if(flag.get()) count.getAndIncrement();
             });
 
             if(inconsistentSnapshots.isEmpty()) {
                 logger.info("All the " + MAPProtocol.globalStates.size() + " GlobalState snapshots are consistent");
             } else {
-                logger.error("There are " + inconsistentSnapshots.size() + " inconsistent states, out of the " +
+                logger.error("There are " + count.get() + " inconsistent states, out of the " +
                         MAPProtocol.globalStates.size() + " GlobalState snapshots");
             }
         }
